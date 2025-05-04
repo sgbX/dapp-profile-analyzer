@@ -33,8 +33,11 @@ import {
   CoinsIcon, 
   TrendingUpIcon,
   MenuIcon,
-  HomeIcon
+  HomeIcon,
+  LineChartIcon,
+  ArrowUpIcon
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 const NETWORKS = [
   'ETHEREUM_MAINNET',
@@ -686,125 +689,401 @@ export default function Home() {
             </div>
             
             {/* Main content tabs */}
-            <Tabs defaultValue="portfolio" className="space-y-4">
+            <Tabs defaultValue="overview" className="space-y-4">
               <TabsList>
-                <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="assets">Assets</TabsTrigger>
                 <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
               </TabsList>
               
-              {/* Portfolio tab */}
-              <TabsContent value="portfolio" className="space-y-4">
-                {Object.entries(portfolioByNetwork).map(([networkName, tokens]: [string, any]) => (
-                  <Card key={networkName} className="overflow-hidden">
-                    <CardHeader className="bg-muted/50">
+              {/* Overview tab - Shows summary, top assets and all holdings */}
+              <TabsContent value="overview" className="space-y-4">
+                {/* Portfolio distribution and Top Assets side by side */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Portfolio distribution card */}
+                  <Card>
+                    <CardHeader>
                       <CardTitle className="flex items-center">
-                        <CoinsIcon className="h-5 w-5 mr-2" />
-                        {networkName}
+                        <BarChart3Icon className="h-5 w-5 mr-2" />
+                        Portfolio Distribution
                       </CardTitle>
+                      <CardDescription>
+                        How your assets are distributed across networks
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
-                        {tokens.map((edge: any, index: number) => {
-                          const token = edge.node;
+                    <CardContent>
+                      <div className="space-y-4">
+                        {Object.entries(portfolioByNetwork).map(([networkName, tokens]: [string, any]) => {
+                          // Calculate total value for this network
+                          const networkValue = tokens.reduce((total: number, edge: any) => {
+                            return total + parseFloat(edge.node.balanceUSD || 0);
+                          }, 0);
+                          
+                          // Calculate percentage of total portfolio
+                          const networkPercentage = (networkValue / totalPortfolioValue) * 100;
+                          
                           return (
-                            <div key={`${token.symbol}-${networkName}-${index}`} className="p-4 bg-card">
-                              <div className="flex items-center gap-3 mb-2">
-                                {token.imgUrlV2 && (
-                                  <img src={token.imgUrlV2} alt={token.symbol} className="w-8 h-8" />
-                                )}
-                                <div>
-                                  <h3 className="font-medium text-foreground">{token.symbol}</h3>
-                                  <p className="text-sm text-muted-foreground">{token.name}</p>
-                                </div>
+                            <div key={`network-dist-${networkName}`} className="space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium">{networkName}</span>
+                                <span className="text-sm text-muted-foreground">{networkPercentage.toFixed(2)}%</span>
                               </div>
-                              
-                              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                                <div>
-                                  <p className="text-muted-foreground">Balance</p>
-                                  <p className="font-medium">{parseFloat(token.balance).toFixed(6)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Value</p>
-                                  <p className="font-medium">${parseFloat(token.balanceUSD).toFixed(2)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Price</p>
-                                  <p className="font-medium">${parseFloat(token.price).toFixed(6)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Network</p>
-                                  <p className="font-medium">{token.network.name}</p>
-                                </div>
-                              </div>
-                              
-                              {/* Token category tags */}
-                              <div className="flex flex-wrap gap-1 mt-3">
-                                {/* Base category based on network */}
-                                <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                                  {token.network.name.toLowerCase()}
-                                </span>
-                                
-                                {/* Token specific categories */}
-                                {token.symbol.toLowerCase() === 'glmr' && (
-                                  <>
-                                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-500">polkadot</span>
-                                    <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">parachain</span>
-                                  </>
-                                )}
-                                
-                                {token.symbol.toLowerCase() === 'xdai' && (
-                                  <>
-                                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-500">layer-2</span>
-                                    <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">stablecoin</span>
-                                  </>
-                                )}
-                                
-                                {token.symbol.toLowerCase() === 'sol' && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-500/10 text-indigo-500">layer-1</span>
-                                )}
-                                
-                                {token.symbol.toLowerCase() === 'griffain' && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-pink-500/10 text-pink-500">nft</span>
-                                )}
-                                
-                                {token.symbol.toLowerCase() === 'rizzmas' && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-rose-500/10 text-rose-500">meme</span>
-                                )}
-                                
-                                {['croissant', 'osol', 'uwug', 'www'].includes(token.symbol.toLowerCase()) && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-500">defi</span>
-                                )}
-                                
-                                {['eth', 'weth', 'steth'].includes(token.symbol.toLowerCase()) && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-500/10 text-indigo-500">smart-contract</span>
-                                )}
-                                
-                                {['btc', 'wbtc'].includes(token.symbol.toLowerCase()) && (
-                                  <>
-                                    <span className="px-2 py-0.5 text-xs rounded-full bg-orange-500/10 text-orange-500">bitcoin</span>
-                                    <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-500/10 text-yellow-500">store-of-value</span>
-                                  </>
-                                )}
-                                
-                                {['usdc', 'usdt', 'dai'].includes(token.symbol.toLowerCase()) && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">stablecoin</span>
-                                )}
-                                
-                                {['uni', 'sushi', 'cake', 'quick'].includes(token.symbol.toLowerCase()) && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-pink-500/10 text-pink-500">dex</span>
-                                )}
-                                
-                                {['link', 'band', 'api3'].includes(token.symbol.toLowerCase()) && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-500/10 text-cyan-500">oracle</span>
-                                )}
-                              </div>
+                              <Progress value={networkPercentage} className="h-2" />
+                              <p className="text-xs text-muted-foreground">${networkValue.toFixed(2)} • {tokens.length} tokens</p>
                             </div>
                           );
                         })}
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  
+                  {/* Top Assets card */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <TrendingUpIcon className="h-5 w-5 mr-2" />
+                        Top Assets
+                      </CardTitle>
+                      <CardDescription>
+                        Your highest value holdings
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="grid grid-cols-1 gap-px bg-border">
+                        {portfolioData
+                          .sort((a: any, b: any) => parseFloat(b.node.balanceUSD) - parseFloat(a.node.balanceUSD))
+                          .slice(0, 6)
+                          .map((edge: any, index: number) => {
+                            const token = edge.node;
+                            const tokenPercentage = (parseFloat(token.balanceUSD) / totalPortfolioValue) * 100;
+                            
+                            return (
+                              <div key={`top-${token.symbol}-${index}`} className="p-4 bg-card">
+                                <div className="flex items-center gap-3 mb-2">
+                                  {token.imgUrlV2 ? (
+                                    <img src={token.imgUrlV2} alt={token.symbol} className="w-8 h-8" />
+                                  ) : (
+                                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                                      <span className="text-xs font-medium">{token.symbol.charAt(0)}</span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <h3 className="font-medium text-foreground">{token.symbol}</h3>
+                                    <p className="text-sm text-muted-foreground">{token.name}</p>
+                                  </div>
+                                  <div className="ml-auto text-right">
+                                    <p className="font-medium">${parseFloat(token.balanceUSD).toFixed(2)}</p>
+                                    <p className="text-xs text-muted-foreground">{tokenPercentage.toFixed(2)}% of total</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* All Holdings section - grouped by network as collapsible accordions */}
+                <h2 className="text-xl font-semibold mt-8 mb-4">All Holdings</h2>
+                <div className="space-y-3">
+                  {Object.entries(portfolioByNetwork)
+                    .sort(([, tokensA]: [string, any], [, tokensB]: [string, any]) => {
+                      // Calculate total value for each network
+                      const valueA = tokensA.reduce((sum: number, edge: any) => sum + parseFloat(edge.node.balanceUSD || 0), 0);
+                      const valueB = tokensB.reduce((sum: number, edge: any) => sum + parseFloat(edge.node.balanceUSD || 0), 0);
+                      // Sort by value descending
+                      return valueB - valueA;
+                    })
+                    .map(([networkName, tokens]: [string, any]) => {
+                      // Calculate network total value
+                      const networkValue = tokens.reduce((total: number, edge: any) => {
+                        return total + parseFloat(edge.node.balanceUSD || 0);
+                      }, 0);
+                      
+                      // Calculate percentage of total portfolio
+                      const networkPercentage = (networkValue / totalPortfolioValue) * 100;
+
+                      // Pick a gradient based on network name
+                      const getNetworkGradient = (name: string) => {
+                        const network = name.toLowerCase();
+                        if (network.includes('ethereum')) return 'from-blue-500/20 to-indigo-500/20';
+                        if (network.includes('solana')) return 'from-purple-500/20 to-fuchsia-500/20';
+                        if (network.includes('avalanche')) return 'from-red-500/20 to-orange-500/20';
+                        if (network.includes('arbitrum')) return 'from-blue-400/20 to-blue-600/20';
+                        if (network.includes('base')) return 'from-blue-500/20 to-sky-400/20';
+                        if (network.includes('bnb') || network.includes('binance')) return 'from-yellow-400/20 to-amber-500/20';
+                        if (network.includes('polygon')) return 'from-purple-400/20 to-violet-500/20';
+                        if (network.includes('optimism')) return 'from-red-400/20 to-rose-500/20';
+                        if (network.includes('zero')) return 'from-slate-500/20 to-slate-700/20';
+                        if (network.includes('ink')) return 'from-indigo-400/20 to-indigo-600/20';
+                        if (network.includes('abstract')) return 'from-teal-400/20 to-emerald-500/20';
+                        if (network.includes('unichain')) return 'from-pink-400/20 to-rose-500/20';
+                        if (network.includes('sonic')) return 'from-blue-400/20 to-cyan-500/20';
+                        if (network.includes('scroll')) return 'from-pink-400/20 to-fuchsia-500/20';
+                        if (network.includes('mantle')) return 'from-emerald-400/20 to-green-500/20';
+                        if (network.includes('celo')) return 'from-green-400/20 to-lime-500/20';
+                        return 'from-gray-400/20 to-gray-600/20'; // Default gradient
+                      };
+                        
+                      return (
+                        <div key={networkName} className="rounded-lg overflow-hidden border">
+                          <div 
+                            className={`bg-gradient-to-r ${getNetworkGradient(networkName)} flex items-center justify-between p-4 cursor-pointer hover:brightness-105 transition-all`}
+                            onClick={(e) => {
+                              // Toggle the expanded state
+                              const target = e.currentTarget.parentElement;
+                              if (target) {
+                                const content = target.querySelector('.network-content');
+                                const arrow = target.querySelector('.arrow-icon');
+                                if (content) {
+                                  const isExpanded = content.classList.contains('hidden');
+                                  if (isExpanded) {
+                                    content.classList.remove('hidden');
+                                    arrow?.classList.add('rotate-180');
+                                  } else {
+                                    content.classList.add('hidden');
+                                    arrow?.classList.remove('rotate-180');
+                                  }
+                                }
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center shadow-sm">
+                                <CoinsIcon className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-foreground">{networkName}</h3>
+                                <div className="flex items-center text-sm text-muted-foreground gap-2">
+                                  <span>{tokens.length} tokens</span>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                                  <span>{networkPercentage.toFixed(1)}% of portfolio</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <span className="text-lg font-semibold">${networkValue.toFixed(2)}</span>
+                                <div className="h-1.5 w-24 bg-primary/10 rounded-full mt-1 overflow-hidden">
+                                  <div 
+                                    className="h-full bg-primary rounded-full" 
+                                    style={{ width: `${Math.min(networkPercentage, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <svg 
+                                className="h-5 w-5 transition-transform arrow-icon" 
+                                xmlns="http://www.w3.org/2000/svg" 
+                                fill="none" 
+                                viewBox="0 0 24 24" 
+                                stroke="currentColor"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </div>
+                          
+                          <div className="network-content hidden">
+                            <div className="divide-y divide-border">
+                              {tokens
+                                .sort((a: any, b: any) => parseFloat(b.node.balanceUSD) - parseFloat(a.node.balanceUSD))
+                                .map((edge: any, index: number) => {
+                                  const token = edge.node;
+                                  const tokenPercentage = (parseFloat(token.balanceUSD) / networkValue) * 100;
+                                  
+                                  return (
+                                    <div key={`${token.symbol}-${networkName}-${index}`} className="p-4 hover:bg-muted/30 transition-colors">
+                                      <div className="flex items-center">
+                                        <div className="flex items-center gap-3 flex-1">
+                                          {token.imgUrlV2 ? (
+                                            <img src={token.imgUrlV2} alt={token.symbol} className="w-10 h-10 rounded-full shadow-sm" />
+                                          ) : (
+                                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center shadow-sm">
+                                              <span className="text-sm font-medium">{token.symbol.charAt(0)}</span>
+                                            </div>
+                                          )}
+                                          <div className="min-w-0">
+                                            <div className="flex items-center">
+                                              <h3 className="font-semibold text-foreground">{token.symbol}</h3>
+                                              <div className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                                                {tokenPercentage.toFixed(1)}%
+                                              </div>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground truncate">{token.name}</p>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex flex-col items-end ml-auto">
+                                          <p className="font-semibold text-foreground">${parseFloat(token.balanceUSD).toFixed(2)}</p>
+                                          <div className="flex items-center text-xs text-muted-foreground gap-1.5">
+                                            <span className="whitespace-nowrap">{parseFloat(token.balance).toFixed(token.balance > 100 ? 2 : 6)}</span>
+                                            <span className="w-1 h-1 rounded-full bg-current opacity-50" />
+                                            <span className="whitespace-nowrap">${parseFloat(token.price).toFixed(token.price < 0.01 ? 6 : 2)}/token</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Progress bar for token value within network */}
+                                      <div className="h-1 w-full bg-muted rounded-full mt-2 overflow-hidden">
+                                        <div 
+                                          className="h-full bg-primary/40 rounded-full" 
+                                          style={{ width: `${Math.min(tokenPercentage, 100)}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </TabsContent>
+              
+              {/* Assets tab - A high-level view of assets grouped by value tier */}
+              <TabsContent value="assets" className="space-y-4">
+                {/* High-value tokens section */}
+                <Card>
+                  <CardHeader className="bg-muted/50">
+                    <CardTitle className="flex items-center">
+                      <ArrowUpIcon className="h-5 w-5 mr-2" />
+                      High-Value Assets
+                    </CardTitle>
+                    <CardDescription>
+                      Your most valuable tokens (over $100)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
+                      {portfolioData
+                        .filter((edge: any) => parseFloat(edge.node.balanceUSD) >= 100)
+                        .sort((a: any, b: any) => parseFloat(b.node.balanceUSD) - parseFloat(a.node.balanceUSD))
+                        .map((edge: any, index: number) => {
+                          const token = edge.node;
+                          const tokenPercentage = (parseFloat(token.balanceUSD) / totalPortfolioValue) * 100;
+                          
+                          return (
+                            <div key={`high-value-${token.symbol}-${index}`} className="p-4 bg-card">
+                              <div className="flex items-center gap-3 mb-2">
+                                {token.imgUrlV2 ? (
+                                  <img src={token.imgUrlV2} alt={token.symbol} className="w-8 h-8" />
+                                ) : (
+                                  <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                                    <span className="text-xs font-medium">{token.symbol.charAt(0)}</span>
+                                  </div>
+                                )}
+                                <div>
+                                  <h3 className="font-medium text-foreground">{token.symbol}</h3>
+                                  <div className="flex items-center text-sm text-muted-foreground">
+                                    <span>{token.network.name}</span>
+                                    <span className="mx-1">•</span>
+                                    <span>{tokenPercentage.toFixed(2)}% of portfolio</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="mt-2">
+                                <div className="flex justify-between text-sm mb-1">
+                                  <span className="text-muted-foreground">Value:</span>
+                                  <span className="font-medium">${parseFloat(token.balanceUSD).toFixed(2)}</span>
+                                </div>
+                                <Progress value={tokenPercentage} className="h-1.5" />
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Mid-value tokens section */}
+                <Card>
+                  <CardHeader className="bg-muted/50">
+                    <CardTitle className="flex items-center">
+                      <LineChartIcon className="h-5 w-5 mr-2" />
+                      Mid-Value Assets
+                    </CardTitle>
+                    <CardDescription>
+                      Your mid-tier tokens ($5 to $100)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-px bg-border">
+                      {portfolioData
+                        .filter((edge: any) => {
+                          const value = parseFloat(edge.node.balanceUSD);
+                          return value >= 5 && value < 100;
+                        })
+                        .sort((a: any, b: any) => parseFloat(b.node.balanceUSD) - parseFloat(a.node.balanceUSD))
+                        .map((edge: any, index: number) => {
+                          const token = edge.node;
+                          return (
+                            <div key={`mid-value-${token.symbol}-${index}`} className="p-3 bg-card">
+                              <div className="flex items-center gap-2">
+                                {token.imgUrlV2 ? (
+                                  <img src={token.imgUrlV2} alt={token.symbol} className="w-6 h-6" />
+                                ) : (
+                                  <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
+                                    <span className="text-xs font-medium">{token.symbol.charAt(0)}</span>
+                                  </div>
+                                )}
+                                <div>
+                                  <h3 className="text-sm font-medium">{token.symbol}</h3>
+                                  <div className="flex items-center text-[10px] text-muted-foreground">
+                                    <span>{token.network.name}</span>
+                                    <span className="mx-1">•</span>
+                                    <span>${parseFloat(token.balanceUSD).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Low-value tokens section */}
+                <Card>
+                  <CardHeader className="bg-muted/50">
+                    <CardTitle className="flex items-center">
+                      <CoinsIcon className="h-5 w-5 mr-2" />
+                      Other Assets
+                    </CardTitle>
+                    <CardDescription>
+                      Your low-value or dust tokens (under $5)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-px bg-border">
+                      {portfolioData
+                        .filter((edge: any) => parseFloat(edge.node.balanceUSD) < 5)
+                        .sort((a: any, b: any) => parseFloat(b.node.balanceUSD) - parseFloat(a.node.balanceUSD))
+                        .map((edge: any, index: number) => {
+                          const token = edge.node;
+                          return (
+                            <div key={`low-value-${token.symbol}-${index}`} className="p-2 bg-card">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 bg-muted rounded-full flex items-center justify-center">
+                                  <span className="text-xs font-medium">{token.symbol.charAt(0)}</span>
+                                </div>
+                                <div>
+                                  <h3 className="text-xs font-medium">{token.symbol}</h3>
+                                  <div className="flex items-center text-[10px] text-muted-foreground">
+                                    <span>{token.network.name}</span>
+                                    <span className="mx-1">•</span>
+                                    <span>${parseFloat(token.balanceUSD).toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
               
               {/* Recommendations tab */}
