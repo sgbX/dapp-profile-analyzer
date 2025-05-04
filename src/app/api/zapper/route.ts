@@ -69,13 +69,49 @@ export async function POST(request: Request) {
 
     // Parse the request body
     const body = await request.json();
+    console.log('Request body:', JSON.stringify(body, null, 2));
+    
+    // Check for API key
+    const apiKey = process.env.ZAPPER_API_KEY || '';
+    if (!apiKey) {
+      console.error('Missing ZAPPER_API_KEY environment variable');
+      return NextResponse.json(
+        { error: 'Server configuration error: Missing API key' },
+        { status: 500 }
+      );
+    }
+    
+    // Debug the wallet address format
+    if (body.variables && body.variables.addresses) {
+      const addresses = body.variables.addresses;
+      console.log('Wallet addresses:', addresses);
+      
+      // Special handling for Solana addresses
+      if (addresses.some((addr: string) => {
+        // Check if it's likely a Solana address (base58 encoded, 32-44 chars)
+        return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr) && !/^0x/.test(addr);
+      })) {
+        console.log('Detected Solana wallet address');
+        
+        // Make sure SOLANA_MAINNET is included in networks
+        if (body.variables.networks && 
+            !body.variables.networks.includes('SOLANA_MAINNET')) {
+          body.variables.networks = ['SOLANA_MAINNET', ...body.variables.networks];
+        }
+        
+        // Log the modified request body
+        console.log('Modified request body:', JSON.stringify(body, null, 2));
+      }
+    }
+    
+    console.log('Making request to Zapper with API key:', apiKey.substring(0, 3) + '...');
     
     // Make the request to Zapper
     const response = await fetch('https://public.zapper.xyz/graphql', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-zapper-api-key': process.env.ZAPPER_API_KEY || '',
+        'x-zapper-api-key': apiKey,
       },
       body: JSON.stringify(body),
       cache: 'no-store'
@@ -86,10 +122,12 @@ export async function POST(request: Request) {
       let errorMessage = `Zapper API error: ${response.status} ${response.statusText}`;
       try {
         const errorData = await response.json();
+        console.error('Zapper API error response:', JSON.stringify(errorData, null, 2));
         if (errorData.error || errorData.message || (errorData.errors && errorData.errors.length > 0)) {
-          errorMessage = `Zapper API error: ${errorData.error || errorData.message || errorData.errors[0].message}`;
+          errorMessage = `Zapper API error: ${errorData.error || errorData.message || (errorData.errors && errorData.errors[0].message)}`;
         }
       } catch (e) {
+        console.error('Error parsing error response:', e);
         // If we can't parse the error response, just use the status text
       }
       console.error(errorMessage);
@@ -110,6 +148,7 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
+    console.log('Zapper API response:', JSON.stringify(data, null, 2).substring(0, 200) + '...');
 
     return NextResponse.json(data, {
       headers: {
@@ -124,7 +163,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Proxy error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

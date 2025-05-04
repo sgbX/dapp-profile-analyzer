@@ -34,7 +34,6 @@ const PORTFOLIO_QUERY = `
               network {
                 name
                 chainId
-                icon
               }
             }
           }
@@ -49,7 +48,7 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: portfolioData, refetch: fetchPortfolio } = useQuery({
+  const { data: portfolioData, refetch: fetchPortfolio, isError: isPortfolioError } = useQuery({
     queryKey: ['portfolio', walletAddress],
     queryFn: async () => {
       if (!walletAddress) return null;
@@ -66,15 +65,26 @@ export default function Home() {
           }
         );
         if (response.data.errors) {
-          throw new Error(response.data.errors[0]?.message || 'Error fetching portfolio data');
+          const errorMsg = response.data.errors[0]?.message || 'Error fetching portfolio data';
+          console.error('GraphQL error:', errorMsg);
+          throw new Error(errorMsg);
         }
-        return response.data.data.portfolioV2.tokenBalances.byToken.edges;
+        
+        const edges = response.data.data?.portfolioV2?.tokenBalances?.byToken?.edges || [];
+        
+        if (edges.length === 0) {
+          console.log('No tokens found for this wallet');
+        }
+        
+        return edges;
       } catch (err: any) {
-        setError(`Portfolio API error: ${err.message}`);
+        const errorMessage = err.response?.data?.error || err.message || 'Unknown error';
+        setError(`Portfolio API error: ${errorMessage}`);
         throw err;
       }
     },
     enabled: false,
+    retry: 1,
   });
 
   const { data: recommendations, error: recommendationsError } = useQuery({
@@ -132,10 +142,31 @@ export default function Home() {
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     setError(null);
+    
+    // Detect wallet type and format address
+    let formattedAddress = walletAddress.trim();
+    let detectedNetwork = '';
+    
+    // Check if it's likely a Solana address (base58 encoded, 32-44 chars)
+    if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(formattedAddress)) {
+      detectedNetwork = 'Solana';
+      console.log('Detected Solana address');
+    }
+    // Check if it's likely an Ethereum address (0x followed by 40 hex chars)
+    else if (/^0x[a-fA-F0-9]{40}$/.test(formattedAddress)) {
+      detectedNetwork = 'Ethereum';
+      console.log('Detected Ethereum address');
+    }
+    
+    console.log(`Analyzing ${detectedNetwork || 'unknown'} wallet: ${formattedAddress}`);
+    
     try {
       await fetchPortfolio();
-    } catch (err) {
-      // Error is already handled in the query
+    } catch (err: any) {
+      // Handle Solana-specific errors
+      if (detectedNetwork === 'Solana' && portfolioData?.length === 0) {
+        setError('No tokens found for this Solana wallet. Note that the Zapper API may have limited support for Solana wallets.');
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -203,9 +234,6 @@ export default function Home() {
                         <p>Price: ${parseFloat(token.price).toFixed(6)}</p>
                         <div className="flex items-center gap-1 mt-1">
                           <span>Network: </span>
-                          {token.network.icon && (
-                            <img src={token.network.icon} alt={token.network.name} className="w-4 h-4 inline-block mr-1" />
-                          )}
                           <span>{token.network.name}</span>
                         </div>
                       </div>
