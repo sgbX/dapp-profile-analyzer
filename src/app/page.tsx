@@ -102,6 +102,22 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [supportedNetworks, setSupportedNetworks] = useState<string[]>(DEFAULT_NETWORKS);
 
+  // Helper function to format large numbers with commas and abbreviations for readability
+  const formatCurrency = (value: number): string => {
+    // For very large numbers, use abbreviations
+    if (value >= 1_000_000_000) {
+      return `$${(value / 1_000_000_000).toFixed(2)}B`; // Billions
+    } else if (value >= 1_000_000) {
+      return `$${(value / 1_000_000).toFixed(2)}M`; // Millions
+    } else if (value >= 10_000) {
+      // For values over 10k, use commas and fixed 2 decimals
+      return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    } else {
+      // For smaller values, show more decimals
+      return `$${value.toFixed(2)}`;
+    }
+  };
+
   // Fetch supported networks from our API
   useQuery({
     queryKey: ['networks'],
@@ -730,7 +746,9 @@ export default function Home() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">${totalPortfolioValue.toFixed(2)}</div>
+                  <div className="text-2xl font-bold overflow-hidden text-ellipsis">
+                    {formatCurrency(totalPortfolioValue)}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Across {networksCount} networks
                   </p>
@@ -821,7 +839,7 @@ export default function Home() {
                                 <span className="text-sm text-muted-foreground">{networkPercentage.toFixed(2)}%</span>
                               </div>
                               <Progress value={networkPercentage} className="h-2" />
-                              <p className="text-xs text-muted-foreground">${networkValue.toFixed(2)} • {tokens.length} tokens</p>
+                              <p className="text-xs text-muted-foreground">{formatCurrency(networkValue)} • {tokens.length} tokens</p>
                             </div>
                           );
                         })}
@@ -864,7 +882,7 @@ export default function Home() {
                                     <p className="text-sm text-muted-foreground">{token.name}</p>
                                   </div>
                                   <div className="ml-auto text-right">
-                                    <p className="font-medium">${parseFloat(token.balanceUSD).toFixed(2)}</p>
+                                    <p className="font-medium">{formatCurrency(parseFloat(token.balanceUSD))}</p>
                                     <p className="text-xs text-muted-foreground">{tokenPercentage.toFixed(2)}% of total</p>
                                   </div>
                                 </div>
@@ -956,7 +974,7 @@ export default function Home() {
                             </div>
                             <div className="flex items-center gap-3">
                               <div className="text-right">
-                                <span className="text-lg font-semibold">${networkValue.toFixed(2)}</span>
+                                <span className="text-lg font-semibold">{formatCurrency(networkValue)}</span>
                                 <div className="h-1.5 w-24 bg-primary/10 rounded-full mt-1 overflow-hidden">
                                   <div 
                                     className="h-full bg-primary rounded-full" 
@@ -1007,7 +1025,7 @@ export default function Home() {
                                         </div>
                                         
                                         <div className="flex flex-col items-end ml-auto">
-                                          <p className="font-semibold text-foreground">${parseFloat(token.balanceUSD).toFixed(2)}</p>
+                                          <p className="font-semibold text-foreground">{formatCurrency(parseFloat(token.balanceUSD))}</p>
                                           <div className="flex items-center text-xs text-muted-foreground gap-1.5">
                                             <span className="whitespace-nowrap">{parseFloat(token.balance).toFixed(token.balance > 100 ? 2 : 6)}</span>
                                             <span className="w-1 h-1 rounded-full bg-current opacity-50" />
@@ -1079,7 +1097,7 @@ export default function Home() {
                               <div className="mt-2">
                                 <div className="flex justify-between text-sm mb-1">
                                   <span className="text-muted-foreground">Value:</span>
-                                  <span className="font-medium">${parseFloat(token.balanceUSD).toFixed(2)}</span>
+                                  <span className="font-medium">{formatCurrency(parseFloat(token.balanceUSD))}</span>
                                 </div>
                                 <Progress value={tokenPercentage} className="h-1.5" />
                               </div>
