@@ -87,6 +87,49 @@ const TOP_TOKENS = [
   }
 ];
 
+// Expanded category mapping to capture more relationships between tokens
+const CATEGORY_MAPPING: Record<string, string[]> = {
+  // Networks and chains
+  "bnb": ["binance-coin", "bnb-chain", "bsc", "binance-smart-chain"],
+  "ethereum": ["eth", "erc20", "ethereum-ecosystem", "eth-ecosystem"],
+  "solana": ["sol", "solana-ecosystem", "sol-ecosystem"],
+  "polygon": ["matic", "polygon-ecosystem", "polygon-network"],
+  "arbitrum": ["arb", "layer-2", "ethereum-layer-2", "scaling"],
+  "optimism": ["op", "layer-2", "ethereum-layer-2", "scaling"],
+  "avalanche": ["avax", "layer-1"],
+  "fantom": ["ftm", "layer-1"],
+  "base": ["layer-2", "ethereum-layer-2", "coinbase-ecosystem"],
+  "blast": ["ethereum-layer-2", "scaling"],
+  "zksync": ["layer-2", "ethereum-layer-2", "zk-rollup", "scaling"],
+  "linea": ["layer-2", "ethereum-layer-2", "scaling"],
+  
+  // Token types
+  "meme": ["meme-token", "meme-coin", "pepe", "doge"],
+  "pepe": ["meme-token", "meme-coin"],
+  "fartcoin": ["meme-token", "meme-coin"],
+  "lend": ["lending", "borrowing", "defi", "yield"],
+  "defi": ["decentralized-finance", "yield", "liquidity"],
+  "dex": ["decentralized-exchange", "swap", "amm"],
+  "gold": ["commodities", "precious-metals", "store-of-value"],
+  "layer": ["layer-1", "layer-2", "scaling", "blockchain"],
+  
+  // Special mappings for tokens in the user's wallet
+  "broccoli": ["food-related", "meme-token", "new-listings"],
+  "morgan": ["finance", "investment", "defi"],
+  "mnl": ["gaming", "utility-token"],
+  "ban": ["meme-token", "community-token"],
+  "bobby": ["nft", "meme-token", "community-token"],
+  "bkok": ["adult-content", "entertainment", "meme-token"],
+  "poseidon": ["gaming", "metaverse", "mythology-inspired"],
+  "rfc": ["utility-token", "protocol-token"],
+  "synx": ["privacy", "utility-token"],
+  "tq": ["gaming", "utility-token"],
+  "dct": ["utility-token", "infrastructure"],
+  "neurox": ["ai", "technology", "utility-token"],
+  "ontropy": ["ai", "data", "utility-token"],
+  "top": ["utility-token", "exchange-token"],
+};
+
 // Helper function to fetch token data from CoinGecko
 async function fetchTokensWithCategories() {
   if (cachedTokens && (Date.now() - cacheTimestamp) < CACHE_DURATION) {
@@ -100,7 +143,7 @@ async function fetchTokensWithCategories() {
     // Use a simpler approach to avoid rate limiting and errors
     // First try to get top tokens with a single request
     const coinsResponse = await fetch(
-      'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=30&page=1',
+      'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1',
       {
         headers: {
           'x-cg-pro-api-key': process.env.COINGECKO_API_KEY || '',
@@ -117,37 +160,83 @@ async function fetchTokensWithCategories() {
     
     const topCoins = await coinsResponse.json();
     
-    // Map coins to our expected format and add default categories
+    // Fetch additional category data for better recommendations
+    // This makes a separate request to get category information
+    let categoryData: Record<string, string[]> = {};
+    try {
+      const categoriesResponse = await fetch(
+        'https://api.coingecko.com/api/v3/coins/categories/list',
+        {
+          headers: {
+            'x-cg-pro-api-key': process.env.COINGECKO_API_KEY || '',
+            'Accept': 'application/json',
+          },
+          next: { revalidate: 86400 } // Revalidate once per day
+        }
+      );
+      
+      if (categoriesResponse.ok) {
+        const categories = await categoriesResponse.json();
+        // Create a mapping of category ID to category name
+        categories.forEach((cat: any) => {
+          const id = cat.category_id.toLowerCase();
+          const name = cat.name.toLowerCase();
+          categoryData[id] = [name];
+        });
+        console.log(`Loaded ${Object.keys(categoryData).length} categories from CoinGecko`);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch category data, using default mappings only');
+    }
+    
+    // Map coins to our expected format and add enriched categories
     const enrichedCoins = topCoins.map((coin: any) => {
-      // Create categories based on coin attributes
-      const categories = ['cryptocurrency'];
+      // Start with the base categories
+      const categories: string[] = ['cryptocurrency'];
+      const symbol = coin.symbol.toLowerCase();
       
       // Add default categories based on coin symbols
-      if (['btc', 'wbtc'].includes(coin.symbol.toLowerCase())) {
-        categories.push('bitcoin', 'store-of-value');
-      } else if (['eth', 'weth'].includes(coin.symbol.toLowerCase())) {
-        categories.push('ethereum', 'smart-contract-platform');
-      } else if (['sol', 'wsol'].includes(coin.symbol.toLowerCase())) {
-        categories.push('solana', 'layer-1');
-      } else if (['arb'].includes(coin.symbol.toLowerCase())) {
-        categories.push('arbitrum', 'layer-2', 'scaling');
-      } else if (['matic'].includes(coin.symbol.toLowerCase())) {
-        categories.push('polygon', 'layer-2', 'scaling');
-      } else if (['uni', 'cake', 'sushi'].includes(coin.symbol.toLowerCase())) {
-        categories.push('dex', 'defi');
-      } else if (['link', 'band'].includes(coin.symbol.toLowerCase())) {
-        categories.push('oracle');
-      } else if (['doge', 'shib', 'pepe'].includes(coin.symbol.toLowerCase())) {
-        categories.push('meme-token');
-      } else if (['avax'].includes(coin.symbol.toLowerCase())) {
-        categories.push('avalanche', 'layer-1');
+      if (['btc', 'wbtc'].includes(symbol)) {
+        categories.push(...['bitcoin', 'store-of-value']);
+      } else if (['eth', 'weth'].includes(symbol)) {
+        categories.push(...['ethereum', 'smart-contract-platform']);
+      } else if (['sol', 'wsol'].includes(symbol)) {
+        categories.push(...['solana', 'layer-1']);
+      } else if (['arb'].includes(symbol)) {
+        categories.push(...['arbitrum', 'layer-2', 'scaling']);
+      } else if (['matic'].includes(symbol)) {
+        categories.push(...['polygon', 'layer-2', 'scaling']);
+      } else if (['uni', 'cake', 'sushi'].includes(symbol)) {
+        categories.push(...['dex', 'defi']);
+      } else if (['link', 'band'].includes(symbol)) {
+        categories.push(...['oracle']);
+      } else if (['doge', 'shib', 'pepe', 'bonk'].includes(symbol)) {
+        categories.push(...['meme-token']);
+      } else if (['avax'].includes(symbol)) {
+        categories.push(...['avalanche', 'layer-1']);
       }
+      
+      // Add categories from our extended mapping if they exist
+      for (const [key, mappedCategories] of Object.entries(CATEGORY_MAPPING)) {
+        if (
+          symbol.includes(key.toLowerCase()) || 
+          coin.name.toLowerCase().includes(key.toLowerCase())
+        ) {
+          categories.push(...mappedCategories);
+        }
+      }
+      
+      // Make sure we don't have duplicate categories
+      const uniqueCategories = [...new Set(categories)];
       
       return {
         id: coin.id,
-        symbol: coin.symbol.toLowerCase(),
+        symbol: symbol,
         name: coin.name,
-        categories: categories
+        categories: uniqueCategories,
+        market_cap: coin.market_cap || 0,
+        price_change_24h: coin.price_change_percentage_24h || 0,
+        image: coin.image || '',
       };
     });
     
@@ -155,7 +244,7 @@ async function fetchTokensWithCategories() {
     cachedTokens = enrichedCoins;
     cacheTimestamp = Date.now();
     
-    console.log(`Retrieved ${enrichedCoins.length} tokens with categories`);
+    console.log(`Retrieved ${enrichedCoins.length} tokens with enriched categories`);
     return enrichedCoins;
   } catch (error) {
     console.error('Error fetching token data:', error);
@@ -165,9 +254,21 @@ async function fetchTokensWithCategories() {
       return cachedTokens;
     }
     
-    // Return hardcoded top tokens as fallback
-    console.log('Using hardcoded top tokens fallback');
-    return TOP_TOKENS;
+    // Return hardcoded top tokens as fallback with expanded categories
+    console.log('Using hardcoded top tokens fallback with expanded categories');
+    return TOP_TOKENS.map(token => {
+      const expandedCategories = [...token.categories];
+      const key = token.symbol.toLowerCase();
+      
+      if (CATEGORY_MAPPING[key]) {
+        expandedCategories.push(...CATEGORY_MAPPING[key]);
+      }
+      
+      return {
+        ...token,
+        categories: [...new Set(expandedCategories)]
+      };
+    });
   }
 }
 

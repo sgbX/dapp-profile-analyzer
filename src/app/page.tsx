@@ -199,106 +199,100 @@ export default function Home() {
         
         console.log("Networks found in portfolio:", Array.from(networksFound));
         
-        // Create a mapping of token types/categories from portfolio
+        // Extract token types for improved category matching
         const portfolioTokenTypes = new Set<string>();
+        const possibleScamTokens = new Set<string>();
         
-        // Add networks as categories for better matching
-        networksFound.forEach(network => {
-          portfolioTokenTypes.add(network);
-          
-          // Special handling for network names
-          if (network === 'moonbeam') {
-            portfolioTokenTypes.add('polkadot');
-            portfolioTokenTypes.add('parachain');
-          }
-          if (network === 'gnosis') {
-            portfolioTokenTypes.add('ethereum');
-            portfolioTokenTypes.add('layer-2');
-          }
-          if (network === 'solana') {
-            portfolioTokenTypes.add('sol');
-            portfolioTokenTypes.add('layer-1');
-          }
-        });
+        // Helper function to clean token symbols for better matching
+        const cleanSymbol = (symbol: string): string => {
+          return symbol.toLowerCase()
+            .replace(/[^\w\s-]/g, '') // Remove special chars except hyphen
+            .trim();
+        };
         
-        // Check for common token types in portfolio
-        portfolioTokenSymbols.forEach((symbol: string) => {
-          // Add the token symbol itself as a category
-          portfolioTokenTypes.add(symbol);
+        // Process each token to extract meaningful types
+        portfolioData.forEach((edge: any) => {
+          const token = edge.node;
+          const symbol = cleanSymbol(token.symbol);
+          const name = token.name?.toLowerCase() || '';
           
-          // Check for types of tokens
-          if (['eth', 'weth', 'steth', 'seth'].includes(symbol)) {
-            portfolioTokenTypes.add('ethereum');
-            portfolioTokenTypes.add('eth');
-            portfolioTokenTypes.add('smart-contract-platform');
+          // Add the symbol as a potential type
+          if (symbol && symbol.length > 1 && !/^\d+$/.test(symbol)) {
+            portfolioTokenTypes.add(symbol);
           }
-          if (['btc', 'wbtc', 'sbtc'].includes(symbol)) {
-            portfolioTokenTypes.add('bitcoin');
-            portfolioTokenTypes.add('btc');
-            portfolioTokenTypes.add('store-of-value');
+          
+          // Add network name if available
+          if (token.network?.name) {
+            const networkName = token.network.name.toLowerCase();
+            portfolioTokenTypes.add(networkName);
+            
+            // Add simplified network name (e.g., "ethereum" from "ethereum_mainnet")
+            const simplifiedNetwork = networkName.split('_')[0];
+            if (simplifiedNetwork && simplifiedNetwork !== networkName) {
+              portfolioTokenTypes.add(simplifiedNetwork);
+            }
           }
-          if (['sol', 'wsol'].includes(symbol)) {
-            portfolioTokenTypes.add('solana');
-            portfolioTokenTypes.add('sol');
-            portfolioTokenTypes.add('layer-1');
+          
+          // Check for common token categories in the name
+          const categoryKeywords = [
+            'defi', 'finance', 'swap', 'exchange', 'yield', 'farm', 'stake',
+            'lend', 'borrow', 'loan', 'credit', 'save', 'dao', 'governance',
+            'game', 'gaming', 'metaverse', 'play', 'nft', 'art', 'collect',
+            'meme', 'doge', 'shib', 'pepe', 'inu', 'floki', 'moon', 'safe',
+            'token', 'coin', 'chain', 'net', 'protocol', 'bridge', 'oracle',
+            'data', 'ai', 'index', 'synth', 'wrapped', 'stable', 'gold',
+            'privacy', 'identity', 'payment', 'layer'
+          ];
+          
+          // Add identified categories from token name
+          categoryKeywords.forEach(keyword => {
+            if (name.includes(keyword) || symbol.includes(keyword)) {
+              portfolioTokenTypes.add(keyword);
+            }
+          });
+          
+          // Check for common meme token patterns
+          if (name.includes('inu') || name.includes('shib') || name.includes('doge') || 
+              name.includes('pepe') || name.includes('moon') || name.includes('elon') ||
+              name.includes('safe') || name.includes('cum') || name.includes('baby') ||
+              symbol.includes('inu') || symbol.includes('shib') || symbol.includes('doge') ||
+              symbol.includes('pepe')) {
+            portfolioTokenTypes.add('meme');
+            portfolioTokenTypes.add('meme-token');
           }
-          if (['glmr'].includes(symbol)) {
-            portfolioTokenTypes.add('moonbeam');
-            portfolioTokenTypes.add('polkadot');
-            portfolioTokenTypes.add('parachain');
-          }
-          if (['xdai'].includes(symbol)) {
-            portfolioTokenTypes.add('gnosis');
-            portfolioTokenTypes.add('dai');
-            portfolioTokenTypes.add('ethereum');
-            portfolioTokenTypes.add('layer-2');
-            portfolioTokenTypes.add('stablecoin');
-          }
-          if (['uni', 'sushi', 'cake', 'quick'].includes(symbol)) {
-            portfolioTokenTypes.add('dex');
-            portfolioTokenTypes.add('defi');
-            portfolioTokenTypes.add('swap');
-          }
-          if (['link', 'band', 'api3'].includes(symbol)) {
-            portfolioTokenTypes.add('oracle');
-            portfolioTokenTypes.add('defi');
-          }
-          if (['aave', 'comp', 'maker', 'curve', 'yearn'].includes(symbol)) {
-            portfolioTokenTypes.add('defi');
-            portfolioTokenTypes.add('lending');
+          
+          // Identify common yield/lending tokens
+          if (symbol.startsWith('a') && symbol.length <= 5 || 
+              symbol.startsWith('c') && symbol.length <= 5 || 
+              symbol.startsWith('y') && symbol.length <= 5) {
             portfolioTokenTypes.add('yield');
+            portfolioTokenTypes.add('lend');
           }
-          if (['ape', 'bayc', 'doodle', 'azuki'].includes(symbol)) {
-            portfolioTokenTypes.add('nft');
-            portfolioTokenTypes.add('collectible');
-          }
-          if (['shib', 'doge', 'pepe', 'wojak', 'bonk'].includes(symbol)) {
-            portfolioTokenTypes.add('meme');
-            portfolioTokenTypes.add('meme-token');
-          }
-          if (['rndr', 'agi', 'fet', 'ocean'].includes(symbol)) {
-            portfolioTokenTypes.add('ai');
-            portfolioTokenTypes.add('technology');
-          }
-          if (['gala', 'enj', 'sand', 'mana', 'axs'].includes(symbol)) {
-            portfolioTokenTypes.add('gaming');
-            portfolioTokenTypes.add('metaverse');
-            portfolioTokenTypes.add('entertainment');
-          }
-          // Add special case for Solana tokens
-          if (['griffain'].includes(symbol)) {
-            portfolioTokenTypes.add('nft');
-            portfolioTokenTypes.add('collectible');
-          }
-          if (['rizzmas'].includes(symbol)) {
-            portfolioTokenTypes.add('meme');
-            portfolioTokenTypes.add('meme-token');
-          }
-          if (['croissant', 'osol', 'uwug', 'www'].includes(symbol)) {
-            portfolioTokenTypes.add('defi');
-            portfolioTokenTypes.add('solana-ecosystem');
+          
+          // Identify potential scam tokens (with URL or claim in name)
+          if (name.includes('airdrop') || name.includes('claim') || 
+              name.includes('.com') || name.includes('.io') || name.includes('.org') ||
+              name.includes('https://') || name.includes('http://') || 
+              name.includes('visit') || name.includes('free') || name.includes('website')) {
+            possibleScamTokens.add(name);
+            // Don't add these to portfolioTokenTypes
+          } else {
+            // For non-scam tokens, extract words from name (if not too long)
+            const nameWords = name.split(/[\s_-]+/);
+            if (nameWords.length <= 3) {  // Only for short names to avoid noise
+              nameWords.forEach((word: string) => {
+                if (word.length >= 3 && !/^\d+$/.test(word)) {
+                  portfolioTokenTypes.add(word);
+                }
+              });
+            }
           }
         });
+        
+        // Log potential scam tokens for awareness
+        if (possibleScamTokens.size > 0) {
+          console.log("Possible scam tokens detected:", Array.from(possibleScamTokens));
+        }
         
         console.log('Portfolio token types:', Array.from(portfolioTokenTypes));
         
@@ -320,46 +314,144 @@ export default function Home() {
           // Base score is 0
           let score = 0;
           
-          // Check matches against portfolio types
+          // Helper function to check if two strings have meaningful overlap
+          const hasOverlap = (str1: string, str2: string): boolean => {
+            // Direct inclusion check
+            if (str1.includes(str2) || str2.includes(str1)) {
+              return true;
+            }
+            
+            // Check for common roots/stems (at least 3 characters)
+            const minStemLength = 3;
+            for (let i = 0; i <= str1.length - minStemLength; i++) {
+              const stem = str1.substring(i, i + minStemLength);
+              if (str2.includes(stem)) {
+                return true;
+              }
+            }
+            
+            return false;
+          };
+          
+          // Check matches against portfolio types with enhanced matching
           Array.from(portfolioTokenTypes).forEach(type => {
             const typeStr = type.toString().toLowerCase();
             
-            // Check for direct category matches
-            if (lowerCategories.some((cat: string) => cat.includes(typeStr) || typeStr.includes(cat))) {
-              score += 10;
+            // Skip problematic token types that look like URLs or have special characters
+            if (typeStr.includes('visit:') || typeStr.includes('claim') || typeStr.includes('․com')) {
+              return;
             }
+            
+            // Direct category matches (exact or partial)
+            let categoryMatched = false;
+            for (const category of lowerCategories) {
+              if (hasOverlap(category, typeStr)) {
+                score += 10;
+                categoryMatched = true;
+                break;
+              }
+            }
+            
+            // Token name/symbol matching for increased relevance
+            if (hasOverlap(token.name.toLowerCase(), typeStr) || hasOverlap(token.symbol.toLowerCase(), typeStr)) {
+              score += 8;
+            }
+            
+            // Check for specific token categories based on type
+            const specialTypes: Record<string, string[]> = {
+              "meme": ["meme-token", "meme-coin", "dog-themed"],
+              "lend": ["lending", "defi", "yield", "staking"],
+              "gold": ["store-of-value", "commodity", "precious-metal"],
+              "layer": ["layer-1", "layer-2", "blockchain", "scaling"],
+              "pepe": ["meme-token", "frog", "meme-coin"],
+              "bnb": ["binance", "bnb-chain", "bsc", "bep20"],
+              "ban": ["meme-coin", "community"],
+              "bobby": ["meme-token", "community", "nft-related"],
+              "top": ["exchange-token", "utility"],
+              "synx": ["privacy", "utility"],
+              "dct": ["utility", "governance"]
+            };
+            
+            // Check for special type matches
+            Object.entries(specialTypes).forEach(([key, categories]) => {
+              if (hasOverlap(typeStr, key)) {
+                categories.forEach((category: string) => {
+                  if (lowerCategories.some((cat: string) => hasOverlap(cat, category))) {
+                    score += 5;
+                  }
+                });
+              }
+            });
             
             // Give extra points for network matches
-            if (networksFound.has(typeStr) && lowerCategories.some((cat: string) => cat.includes(typeStr))) {
-              score += 5;
+            if (networksFound.has(typeStr) && lowerCategories.some((cat: string) => hasOverlap(cat, typeStr))) {
+              score += 7;
             }
             
-            // More points for matching specific token characteristics
-            if ((typeStr.includes('defi') || typeStr.includes('dex')) && 
-                lowerCategories.some((cat: string) => cat.includes('defi') || cat.includes('dex'))) {
-              score += 3;  
+            // More points for matching specific token characteristics with enhanced matching
+            if ((typeStr.includes('defi') || typeStr.includes('lend') || typeStr.includes('yield')) && 
+                lowerCategories.some((cat: string) => 
+                  cat.includes('defi') || cat.includes('lend') || cat.includes('yield') || cat.includes('staking'))) {
+              score += 6;  
             }
             
-            if ((typeStr.includes('meme') || typeStr.includes('nft')) && 
-                lowerCategories.some((cat: string) => cat.includes('meme') || cat.includes('nft'))) {
-              score += 3;
+            if ((typeStr.includes('meme') || typeStr.includes('pepe') || typeStr.includes('doge')) && 
+                lowerCategories.some((cat: string) => 
+                  cat.includes('meme') || cat.includes('pepe') || cat.includes('doge'))) {
+              score += 6;
             }
             
-            if ((typeStr.includes('layer-1') || typeStr.includes('layer-2')) && 
-                lowerCategories.some((cat: string) => cat.includes('layer'))) {
-              score += 3;
+            if ((typeStr.includes('layer') || typeStr.includes('chain') || typeStr.includes('network')) && 
+                lowerCategories.some((cat: string) => 
+                  cat.includes('layer') || cat.includes('chain') || cat.includes('network'))) {
+              score += 4;
             }
           });
+          
+          // Bonus points for trending tokens (if price change data is available)
+          if (token.price_change_24h && token.price_change_24h > 5) {
+            score += 3; // Small bonus for trending tokens
+          }
           
           return score;
         };
         
         // Score and rank all tokens
         const scoredTokens = tokenData
-          .map((token: any) => ({
-            ...token,
-            score: scoreToken(token)
-          }))
+          .map((token: any) => {
+            // Calculate the score for this token
+            const score = scoreToken(token);
+            
+            // Find matching categories between token and portfolio
+            const matchingCategories: string[] = [];
+            const lowerCategories = (token.categories || []).map((cat: string) => cat.toLowerCase());
+            
+            // For each token type in portfolio, check if it matches token categories
+            Array.from(portfolioTokenTypes).forEach((type: any) => {
+              const typeStr = type.toString().toLowerCase();
+              
+              // Skip problematic token types
+              if (typeStr.includes('visit:') || typeStr.includes('claim') || typeStr.includes('․com')) {
+                return;
+              }
+              
+              // Add to matching categories if there's overlap
+              for (const category of lowerCategories) {
+                if (category.includes(typeStr) || typeStr.includes(category)) {
+                  if (!matchingCategories.includes(typeStr)) {
+                    matchingCategories.push(typeStr);
+                  }
+                  break;
+                }
+              }
+            });
+            
+            return {
+              ...token,
+              score,
+              matchingCategories
+            };
+          })
           .filter((token: any) => token.score > 0)
           .sort((a: any, b: any) => b.score - a.score);
         
@@ -1088,54 +1180,92 @@ export default function Home() {
               
               {/* Recommendations tab */}
               <TabsContent value="recommendations" className="space-y-4">
+                {/* Recommendations - Enhanced version */}
                 {recommendations && recommendations.length > 0 ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <TrendingUpIcon className="h-5 w-5 mr-2" />
-                        Recommended Tokens
-                      </CardTitle>
-                      <CardDescription>
-                        Based on your current holdings
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
-                        {recommendations.map((token: any, index: number) => (
-                          <div key={`${token.id}-${index}`} className="p-4 bg-card">
-                            <h3 className="font-medium text-foreground">{token.name}</h3>
-                            <p className="text-sm text-muted-foreground">Symbol: {token.symbol.toUpperCase()}</p>
-                            
-                            {token.categories && token.categories.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-3">
-                                {token.categories.map((category: string, i: number) => (
+                  <div className="p-4 bg-card rounded-lg border border-border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUpIcon className="w-5 h-5 text-green-500" />
+                      <h3 className="text-lg font-semibold">Token Recommendations</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Based on your portfolio profile, you might be interested in these tokens:
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {recommendations.map((token: any, index: number) => (
+                        <div key={index} className="flex flex-col p-4 bg-card/50 rounded-lg border border-border hover:border-primary/50 transition-all">
+                          <div className="flex items-center gap-3 mb-2">
+                            {token.image && (
+                              <img 
+                                src={token.image} 
+                                alt={token.name} 
+                                className="w-8 h-8 rounded-full"
+                                onError={(e) => {
+                                  // Replace broken images with a generic icon
+                                  (e.target as HTMLImageElement).src = 'https://placehold.co/32/6dedd5/white?text=' + token.symbol?.substring(0,2)?.toUpperCase();
+                                }}
+                              />
+                            )}
+                            <div>
+                              <h4 className="font-medium">{token.name}</h4>
+                              <p className="text-xs text-muted-foreground uppercase">{token.symbol}</p>
+                            </div>
+                            {token.price_change_24h > 0 && (
+                              <span className="ml-auto text-xs font-medium text-green-500 flex items-center gap-1">
+                                <ArrowUpIcon className="w-3 h-3" />
+                                {token.price_change_24h.toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Show matching categories if available */}
+                          {token.matchingCategories && token.matchingCategories.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs text-muted-foreground mb-1">Matching your profile:</p>
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {token.matchingCategories.slice(0, 3).map((category: string, i: number) => (
                                   <span 
-                                    key={`${token.id}-cat-${i}`} 
-                                    className={`px-2 py-0.5 text-xs rounded-full ${
-                                      category.toLowerCase().includes('layer') ? 'bg-blue-500/10 text-blue-500' :
-                                      category.toLowerCase().includes('bitcoin') ? 'bg-orange-500/10 text-orange-500' :
-                                      category.toLowerCase().includes('ethereum') ? 'bg-blue-500/10 text-blue-500' :
-                                      category.toLowerCase().includes('solana') ? 'bg-purple-500/10 text-purple-500' :
-                                      category.toLowerCase().includes('meme') ? 'bg-rose-500/10 text-rose-500' :
-                                      category.toLowerCase().includes('defi') ? 'bg-amber-500/10 text-amber-500' :
-                                      category.toLowerCase().includes('dex') ? 'bg-pink-500/10 text-pink-500' :
-                                      category.toLowerCase().includes('oracle') ? 'bg-cyan-500/10 text-cyan-500' :
-                                      category.toLowerCase().includes('store') ? 'bg-yellow-500/10 text-yellow-500' :
-                                      category.toLowerCase().includes('smart') ? 'bg-indigo-500/10 text-indigo-500' :
-                                      category.toLowerCase().includes('scale') || category.toLowerCase().includes('parachain') ? 'bg-green-500/10 text-green-500' :
-                                      'bg-primary/10 text-primary'
-                                    }`}
+                                    key={i}
+                                    className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full"
                                   >
                                     {category}
                                   </span>
                                 ))}
                               </div>
-                            )}
+                            </div>
+                          )}
+                          
+                          {/* Token categories */}
+                          <div className="mt-2">
+                            <p className="text-xs text-muted-foreground mb-1">Categories:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {(token.categories || []).slice(0, 4).map((category: string, i: number) => (
+                                <span 
+                                  key={i}
+                                  className={`px-2 py-0.5 text-xs rounded-full ${
+                                    category.toLowerCase().includes('layer') ? 'bg-blue-500/10 text-blue-500' :
+                                    category.toLowerCase().includes('bitcoin') ? 'bg-orange-500/10 text-orange-500' :
+                                    category.toLowerCase().includes('ethereum') ? 'bg-blue-500/10 text-blue-500' :
+                                    category.toLowerCase().includes('solana') ? 'bg-purple-500/10 text-purple-500' :
+                                    category.toLowerCase().includes('meme') ? 'bg-rose-500/10 text-rose-500' :
+                                    category.toLowerCase().includes('defi') ? 'bg-amber-500/10 text-amber-500' :
+                                    category.toLowerCase().includes('dex') ? 'bg-pink-500/10 text-pink-500' :
+                                    category.toLowerCase().includes('oracle') ? 'bg-cyan-500/10 text-cyan-500' :
+                                    category.toLowerCase().includes('store') ? 'bg-yellow-500/10 text-yellow-500' :
+                                    category.toLowerCase().includes('smart') ? 'bg-indigo-500/10 text-indigo-500' :
+                                    category.toLowerCase().includes('scale') || category.toLowerCase().includes('parachain') ? 'bg-green-500/10 text-green-500' :
+                                    'bg-muted text-muted-foreground'
+                                  }`}
+                                >
+                                  {category}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : recommendations && recommendations.length === 0 ? (
                   <Card>
                     <CardHeader>
