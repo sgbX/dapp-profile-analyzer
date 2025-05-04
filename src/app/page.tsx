@@ -1,103 +1,245 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+
+const NETWORKS = [
+  'ETHEREUM_MAINNET',
+  'POLYGON_MAINNET',
+  'OPTIMISM_MAINNET',
+  'ARBITRUM_MAINNET',
+  'BINANCE_SMART_CHAIN_MAINNET',
+  'AVALANCHE_MAINNET',
+  'FANTOM_OPERA_MAINNET',
+  'SOLANA_MAINNET',
+];
+
+const PORTFOLIO_QUERY = `
+  query PortfolioV2($addresses: [Address!]!, $networks: [Network!]) {
+    portfolioV2(addresses: $addresses, networks: $networks) {
+      tokenBalances {
+        byToken {
+          edges {
+            node {
+              balance
+              balanceRaw
+              balanceUSD
+              symbol
+              name
+              price
+              imgUrlV2
+              network {
+                name
+                chainId
+                icon
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [walletAddress, setWalletAddress] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const { data: portfolioData, refetch: fetchPortfolio } = useQuery({
+    queryKey: ['portfolio', walletAddress],
+    queryFn: async () => {
+      if (!walletAddress) return null;
+      try {
+        setError(null);
+        const response = await axios.post(
+          '/api/zapper',
+          {
+            query: PORTFOLIO_QUERY,
+            variables: {
+              addresses: [walletAddress],
+              networks: NETWORKS
+            }
+          }
+        );
+        if (response.data.errors) {
+          throw new Error(response.data.errors[0]?.message || 'Error fetching portfolio data');
+        }
+        return response.data.data.portfolioV2.tokenBalances.byToken.edges;
+      } catch (err: any) {
+        setError(`Portfolio API error: ${err.message}`);
+        throw err;
+      }
+    },
+    enabled: false,
+  });
+
+  const { data: recommendations, error: recommendationsError } = useQuery({
+    queryKey: ['recommendations', portfolioData],
+    queryFn: async () => {
+      if (!portfolioData) return null;
+      
+      try {
+        // Get token tags from CoinGecko through our proxy
+        const response = await axios.get(
+          '/api/coingecko',
+          {
+            params: {
+              include_platform: false
+            }
+          }
+        );
+        
+        if (response.data.error) {
+          throw new Error(response.data.error);
+        }
+        
+        // Analyze portfolio and get recommendations
+        const portfolioTokens = portfolioData.map((edge: any) => edge.node.symbol.toLowerCase());
+        let recommendedTokens = response.data
+          .filter((token: any) => {
+            const tokenTags = token.categories || [];
+            return tokenTags.some((tag: string) => 
+              portfolioTokens.some((portfolioToken: string) => 
+                tag.toLowerCase().includes(portfolioToken)
+              )
+            );
+          })
+          .slice(0, 5);
+          
+        // If no recommendations found, return top tokens from similar categories
+        if (recommendedTokens.length === 0) {
+          const topTokens = response.data
+            .filter((token: any) => token.symbol.toLowerCase() !== 'usdt' && token.symbol.toLowerCase() !== 'usdc')
+            .slice(0, 5);
+          recommendedTokens = topTokens;
+        }
+
+        return recommendedTokens;
+      } catch (err: any) {
+        setError(`Recommendations API error: ${err.message}`);
+        throw err;
+      }
+    },
+    enabled: !!portfolioData,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+
+  const handleAnalyze = async () => {
+    setIsAnalyzing(true);
+    setError(null);
+    try {
+      await fetchPortfolio();
+    } catch (err) {
+      // Error is already handled in the query
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Group portfolio data by network
+  const portfolioByNetwork = portfolioData ? portfolioData.reduce((acc: any, edge: any) => {
+    const network = edge.node.network.name;
+    if (!acc[network]) {
+      acc[network] = [];
+    }
+    acc[network].push(edge);
+    return acc;
+  }, {}) : {};
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24">
+      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
+        <h1 className="text-4xl font-bold mb-8 text-center">Wallet Profile Analyzer</h1>
+        
+        <div className="flex flex-col items-center gap-4">
+          <Input
+            type="text"
+            placeholder="Enter wallet address (supports Ethereum, Solana, Polygon, etc.)"
+            value={walletAddress}
+            onChange={(e) => setWalletAddress(e.target.value)}
+            className="w-full max-w-md"
+          />
+          
+          <Button 
+            onClick={handleAnalyze}
+            disabled={isAnalyzing || !walletAddress}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {isAnalyzing ? 'Analyzing...' : 'Analyze Portfolio'}
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-100 border border-red-300 rounded-md text-red-700">
+            {error}
+          </div>
+        )}
+
+        {portfolioData && portfolioData.length > 0 ? (
+          <div className="mt-8">
+            <h2 className="text-2xl font-semibold mb-4">Portfolio Analysis</h2>
+            
+            {Object.entries(portfolioByNetwork).map(([networkName, tokens]: [string, any]) => (
+              <div key={networkName} className="mb-8">
+                <h3 className="text-xl font-medium mb-2">{networkName}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {tokens.map((edge: any, index: number) => {
+                    const token = edge.node;
+                    return (
+                      <div key={`${token.symbol}-${networkName}-${index}`} className="p-4 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          {token.imgUrlV2 && (
+                            <img src={token.imgUrlV2} alt={token.symbol} className="w-8 h-8" />
+                          )}
+                          <h3 className="font-medium">{token.symbol}</h3>
+                        </div>
+                        <p>Name: {token.name}</p>
+                        <p>Balance: {parseFloat(token.balance).toFixed(6)}</p>
+                        <p>Value: ${parseFloat(token.balanceUSD).toFixed(2)}</p>
+                        <p>Price: ${parseFloat(token.price).toFixed(6)}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span>Network: </span>
+                          {token.network.icon && (
+                            <img src={token.network.icon} alt={token.network.name} className="w-4 h-4 inline-block mr-1" />
+                          )}
+                          <span>{token.network.name}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : portfolioData && portfolioData.length === 0 ? (
+          <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-yellow-700">No tokens found for this wallet address. Please check the address and try again.</p>
+          </div>
+        ) : null}
+
+        {recommendations && recommendations.length > 0 ? (
+          <div className="mt-8">
+            <h2 className="text-2xl font-semibold mb-4">Recommended Tokens</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {recommendations.map((token: any, index: number) => (
+                <div key={`${token.id}-${index}`} className="p-4 border rounded-lg">
+                  <h3 className="font-medium">{token.name}</h3>
+                  <p>Symbol: {token.symbol.toUpperCase()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : recommendations && recommendations.length === 0 ? (
+          <div className="mt-8">
+            <h2 className="text-2xl font-semibold mb-4">Recommended Tokens</h2>
+            <p className="text-gray-500">No specific recommendations found for your portfolio tokens.</p>
+          </div>
+        ) : null}
+      </div>
+    </main>
   );
 }
