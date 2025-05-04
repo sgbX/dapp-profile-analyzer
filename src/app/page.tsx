@@ -5,6 +5,36 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardContent,
+  CardFooter,
+  CardDescription
+} from '@/components/ui/card';
+import { 
+  Tabs, 
+  TabsList, 
+  TabsTrigger, 
+  TabsContent 
+} from '@/components/ui/tabs';
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription
+} from '@/components/ui/sheet';
+import { 
+  Wallet2Icon, 
+  BarChart3Icon, 
+  CoinsIcon, 
+  TrendingUpIcon,
+  MenuIcon,
+  HomeIcon
+} from 'lucide-react';
 
 const NETWORKS = [
   'ETHEREUM_MAINNET',
@@ -465,7 +495,7 @@ export default function Home() {
     }
   };
 
-  // Group portfolio data by network - do this outside the JSX for better performance
+  // Group portfolio data by network
   const portfolioByNetwork = useMemo(() => {
     if (!portfolioData || portfolioData.length === 0) {
       return {};
@@ -497,221 +527,370 @@ export default function Home() {
     return Object.keys(portfolioByNetwork).length;
   }, [portfolioByNetwork]);
 
+  // Count of tokens
+  const tokenCount = useMemo(() => {
+    return portfolioData?.length || 0;
+  }, [portfolioData]);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
-        <h1 className="text-4xl font-bold mb-8 text-center">Wallet Profile Analyzer</h1>
-        
-        <div className="flex flex-col items-center gap-4">
-          <Input
-            type="text"
-            placeholder="Enter wallet address (supports ETH, Solana, BSC, Polygon, etc.)"
-            value={walletAddress}
-            onChange={(e) => setWalletAddress(e.target.value)}
-            className="w-full max-w-md"
-          />
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Top navigation bar */}
+      <header className="border-b">
+        <div className="flex h-16 items-center px-4 gap-4">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="md:hidden">
+                <MenuIcon className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left">
+              <SheetHeader>
+                <SheetTitle>Wallet Analyzer</SheetTitle>
+                <SheetDescription>
+                  Analyze blockchain wallets across multiple networks
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-4 flex flex-col gap-2">
+                <Button variant="ghost" className="justify-start">
+                  <HomeIcon className="mr-2 h-4 w-4" />
+                  Home
+                </Button>
+                <Button variant="ghost" className="justify-start">
+                  <Wallet2Icon className="mr-2 h-4 w-4" />
+                  Wallets
+                </Button>
+                <Button variant="ghost" className="justify-start">
+                  <BarChart3Icon className="mr-2 h-4 w-4" />
+                  Analytics
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
           
-          <Button 
-            onClick={handleAnalyze}
-            disabled={isAnalyzing || !walletAddress}
-          >
-            {isAnalyzing ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Analyzing...
-              </span>
-            ) : 'Analyze Portfolio'}
-          </Button>
+          <div className="flex items-center">
+            <Wallet2Icon className="h-6 w-6 mr-2" />
+            <h1 className="text-xl font-bold">Wallet Profile Analyzer</h1>
+          </div>
           
-          <div className="text-xs text-gray-500 mt-2">
-            Supports {supportedNetworks.length} networks including Ethereum, Solana, Polygon, BSC, and more
+          <div className="flex flex-1 items-center justify-center md:justify-end gap-2">
+            <div className="w-full md:w-auto flex gap-2 max-w-md">
+              <Input
+                type="text"
+                placeholder="Enter wallet address (ETH, SOL, BSC, etc.)"
+                value={walletAddress}
+                onChange={(e) => setWalletAddress(e.target.value)}
+                className="md:min-w-[300px]"
+              />
+              <Button 
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || !walletAddress}
+                className="bg-primary text-primary-foreground"
+              >
+                {isAnalyzing ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Analyzing...
+                  </span>
+                ) : 'Analyze'}
+              </Button>
+            </div>
           </div>
         </div>
-
-        {/* Error message - Only show if we have an error and no portfolio data */}
+      </header>
+      
+      <main className="container p-4 md:p-6 mx-auto">
+        {/* Error message */}
         {error && (!portfolioData || portfolioData.length === 0) && (
-          <div className="mt-4 p-4 bg-red-100 border border-red-300 rounded-md text-red-700">
+          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md text-destructive">
             {error}
           </div>
         )}
 
-        {/* Loading state - Only show when actively analyzing and no data loaded yet */}
+        {/* Loading state */}
         {isAnalyzing && (!portfolioData || portfolioData.length === 0) && (
-          <div className="mt-8 flex flex-col items-center justify-center">
+          <div className="h-[50vh] flex flex-col items-center justify-center">
             <div className="mb-4 text-center">
-              <span className="font-medium">Analyzing wallet across {supportedNetworks.length} networks...</span>
-              <p className="text-sm text-gray-500">This might take a few seconds</p>
+              <svg className="animate-spin h-10 w-10 mb-4 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span className="text-xl font-medium">Analyzing wallet across {supportedNetworks.length} networks...</span>
+              <p className="text-sm text-muted-foreground mt-2">This might take a few seconds</p>
             </div>
           </div>
         )}
 
-        {/* Portfolio data */}
-        {portfolioData && portfolioData.length > 0 ? (
-          <div className="mt-8">
-            <h2 className="text-2xl font-semibold mb-4">Portfolio Analysis</h2>
-            
-            {Object.entries(portfolioByNetwork).map(([networkName, tokens]: [string, any]) => (
-              <div key={networkName} className="mb-8">
-                <h3 className="text-xl font-medium mb-2">{networkName}</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tokens.map((edge: any, index: number) => {
-                    const token = edge.node;
-                    return (
-                      <div key={`${token.symbol}-${networkName}-${index}`} className="p-4 border rounded-lg">
-                        <div className="flex items-center gap-2">
-                          {token.imgUrlV2 && (
-                            <img src={token.imgUrlV2} alt={token.symbol} className="w-8 h-8" />
-                          )}
-                          <h3 className="font-medium">{token.symbol}</h3>
-                        </div>
-                        <p>Name: {token.name}</p>
-                        <p>Balance: {parseFloat(token.balance).toFixed(6)}</p>
-                        <p>Value: ${parseFloat(token.balanceUSD).toFixed(2)}</p>
-                        <p>Price: ${parseFloat(token.price).toFixed(6)}</p>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span>Network: </span>
-                          <span>{token.network.name}</span>
-                        </div>
-                        
-                        {/* Add token category labels */}
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {/* Base category based on network */}
-                          <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800">
-                            {token.network.name.toLowerCase()}
-                          </span>
-                          
-                          {/* Specific token categories */}
-                          {token.symbol.toLowerCase() === 'glmr' && (
-                            <>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">polkadot</span>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">parachain</span>
-                            </>
-                          )}
-                          
-                          {token.symbol.toLowerCase() === 'xdai' && (
-                            <>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">layer-2</span>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">stablecoin</span>
-                            </>
-                          )}
-                          
-                          {token.symbol.toLowerCase() === 'sol' && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">layer-1</span>
-                          )}
-                          
-                          {token.symbol.toLowerCase() === 'griffain' && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-pink-100 text-pink-800">nft</span>
-                          )}
-                          
-                          {token.symbol.toLowerCase() === 'rizzmas' && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-800">meme</span>
-                          )}
-                          
-                          {['croissant', 'osol', 'uwug', 'www'].includes(token.symbol.toLowerCase()) && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800">defi</span>
-                          )}
-                          
-                          {['eth', 'weth', 'steth'].includes(token.symbol.toLowerCase()) && (
-                            <>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">smart-contract</span>
-                            </>
-                          )}
-                          
-                          {['btc', 'wbtc'].includes(token.symbol.toLowerCase()) && (
-                            <>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800">bitcoin</span>
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800">store-of-value</span>
-                            </>
-                          )}
-                          
-                          {['usdc', 'usdt', 'dai'].includes(token.symbol.toLowerCase()) && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">stablecoin</span>
-                          )}
-                          
-                          {['uni', 'sushi', 'cake', 'quick'].includes(token.symbol.toLowerCase()) && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-pink-100 text-pink-800">dex</span>
-                          )}
-                          
-                          {['link', 'band', 'api3'].includes(token.symbol.toLowerCase()) && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-100 text-cyan-800">oracle</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          !isAnalyzing && walletAddress && !error && (
-            <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-yellow-700">No tokens found for this wallet address. Please check the address and try again.</p>
-            </div>
-          )
-        )}
-
-        {/* Show total portfolio value */}
+        {/* Dashboard content - only show when we have data */}
         {portfolioData && portfolioData.length > 0 && (
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-md">
-            <h3 className="text-lg font-medium text-blue-800">Portfolio Summary</h3>
-            <p className="text-blue-600">
-              Total Value: ${totalPortfolioValue.toFixed(2)}
-            </p>
-            <p className="text-sm text-blue-500 mt-1">
-              Across {networksCount} networks
-            </p>
-          </div>
+          <>
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total Value
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">${totalPortfolioValue.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Across {networksCount} networks
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Token Count
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{tokenCount}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Unique tokens
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Networks
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{networksCount}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Active blockchains
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Wallet
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm font-medium truncate">{walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {walletAddress.startsWith('0x') ? 'Ethereum-compatible' : 'Solana'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Main content tabs */}
+            <Tabs defaultValue="portfolio" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+                <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+              </TabsList>
+              
+              {/* Portfolio tab */}
+              <TabsContent value="portfolio" className="space-y-4">
+                {Object.entries(portfolioByNetwork).map(([networkName, tokens]: [string, any]) => (
+                  <Card key={networkName} className="overflow-hidden">
+                    <CardHeader className="bg-muted/50">
+                      <CardTitle className="flex items-center">
+                        <CoinsIcon className="h-5 w-5 mr-2" />
+                        {networkName}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
+                        {tokens.map((edge: any, index: number) => {
+                          const token = edge.node;
+                          return (
+                            <div key={`${token.symbol}-${networkName}-${index}`} className="p-4 bg-card">
+                              <div className="flex items-center gap-3 mb-2">
+                                {token.imgUrlV2 && (
+                                  <img src={token.imgUrlV2} alt={token.symbol} className="w-8 h-8" />
+                                )}
+                                <div>
+                                  <h3 className="font-medium text-foreground">{token.symbol}</h3>
+                                  <p className="text-sm text-muted-foreground">{token.name}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Balance</p>
+                                  <p className="font-medium">{parseFloat(token.balance).toFixed(6)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Value</p>
+                                  <p className="font-medium">${parseFloat(token.balanceUSD).toFixed(2)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Price</p>
+                                  <p className="font-medium">${parseFloat(token.price).toFixed(6)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Network</p>
+                                  <p className="font-medium">{token.network.name}</p>
+                                </div>
+                              </div>
+                              
+                              {/* Token category tags */}
+                              <div className="flex flex-wrap gap-1 mt-3">
+                                {/* Base category based on network */}
+                                <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                                  {token.network.name.toLowerCase()}
+                                </span>
+                                
+                                {/* Token specific categories */}
+                                {token.symbol.toLowerCase() === 'glmr' && (
+                                  <>
+                                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-500">polkadot</span>
+                                    <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">parachain</span>
+                                  </>
+                                )}
+                                
+                                {token.symbol.toLowerCase() === 'xdai' && (
+                                  <>
+                                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-500/10 text-blue-500">layer-2</span>
+                                    <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">stablecoin</span>
+                                  </>
+                                )}
+                                
+                                {token.symbol.toLowerCase() === 'sol' && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-500/10 text-indigo-500">layer-1</span>
+                                )}
+                                
+                                {token.symbol.toLowerCase() === 'griffain' && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-pink-500/10 text-pink-500">nft</span>
+                                )}
+                                
+                                {token.symbol.toLowerCase() === 'rizzmas' && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-rose-500/10 text-rose-500">meme</span>
+                                )}
+                                
+                                {['croissant', 'osol', 'uwug', 'www'].includes(token.symbol.toLowerCase()) && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-500">defi</span>
+                                )}
+                                
+                                {['eth', 'weth', 'steth'].includes(token.symbol.toLowerCase()) && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-500/10 text-indigo-500">smart-contract</span>
+                                )}
+                                
+                                {['btc', 'wbtc'].includes(token.symbol.toLowerCase()) && (
+                                  <>
+                                    <span className="px-2 py-0.5 text-xs rounded-full bg-orange-500/10 text-orange-500">bitcoin</span>
+                                    <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-500/10 text-yellow-500">store-of-value</span>
+                                  </>
+                                )}
+                                
+                                {['usdc', 'usdt', 'dai'].includes(token.symbol.toLowerCase()) && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-green-500/10 text-green-500">stablecoin</span>
+                                )}
+                                
+                                {['uni', 'sushi', 'cake', 'quick'].includes(token.symbol.toLowerCase()) && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-pink-500/10 text-pink-500">dex</span>
+                                )}
+                                
+                                {['link', 'band', 'api3'].includes(token.symbol.toLowerCase()) && (
+                                  <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-500/10 text-cyan-500">oracle</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </TabsContent>
+              
+              {/* Recommendations tab */}
+              <TabsContent value="recommendations" className="space-y-4">
+                {recommendations && recommendations.length > 0 ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <TrendingUpIcon className="h-5 w-5 mr-2" />
+                        Recommended Tokens
+                      </CardTitle>
+                      <CardDescription>
+                        Based on your current holdings
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
+                        {recommendations.map((token: any, index: number) => (
+                          <div key={`${token.id}-${index}`} className="p-4 bg-card">
+                            <h3 className="font-medium text-foreground">{token.name}</h3>
+                            <p className="text-sm text-muted-foreground">Symbol: {token.symbol.toUpperCase()}</p>
+                            
+                            {token.categories && token.categories.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-3">
+                                {token.categories.map((category: string, i: number) => (
+                                  <span 
+                                    key={`${token.id}-cat-${i}`} 
+                                    className={`px-2 py-0.5 text-xs rounded-full ${
+                                      category.toLowerCase().includes('layer') ? 'bg-blue-500/10 text-blue-500' :
+                                      category.toLowerCase().includes('bitcoin') ? 'bg-orange-500/10 text-orange-500' :
+                                      category.toLowerCase().includes('ethereum') ? 'bg-blue-500/10 text-blue-500' :
+                                      category.toLowerCase().includes('solana') ? 'bg-purple-500/10 text-purple-500' :
+                                      category.toLowerCase().includes('meme') ? 'bg-rose-500/10 text-rose-500' :
+                                      category.toLowerCase().includes('defi') ? 'bg-amber-500/10 text-amber-500' :
+                                      category.toLowerCase().includes('dex') ? 'bg-pink-500/10 text-pink-500' :
+                                      category.toLowerCase().includes('oracle') ? 'bg-cyan-500/10 text-cyan-500' :
+                                      category.toLowerCase().includes('store') ? 'bg-yellow-500/10 text-yellow-500' :
+                                      category.toLowerCase().includes('smart') ? 'bg-indigo-500/10 text-indigo-500' :
+                                      category.toLowerCase().includes('scale') || category.toLowerCase().includes('parachain') ? 'bg-green-500/10 text-green-500' :
+                                      'bg-primary/10 text-primary'
+                                    }`}
+                                  >
+                                    {category}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : recommendations && recommendations.length === 0 ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recommended Tokens</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground">No specific recommendations found for your portfolio tokens.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="flex items-center justify-center h-40">
+                      <p className="text-muted-foreground">Analyze a wallet to get recommendations</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
+          </>
         )}
-
-        {/* Recommendations section */}
-        {recommendations && recommendations.length > 0 ? (
-          <div className="mt-8">
-            <h2 className="text-2xl font-semibold mb-4">Recommended Tokens</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {recommendations.map((token: any, index: number) => (
-                <div key={`${token.id}-${index}`} className="p-4 border rounded-lg">
-                  <h3 className="font-medium">{token.name}</h3>
-                  <p>Symbol: {token.symbol.toUpperCase()}</p>
-                  {token.categories && token.categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {token.categories.map((category: string, i: number) => (
-                        <span 
-                          key={`${token.id}-cat-${i}`} 
-                          className={`px-2 py-0.5 text-xs rounded-full ${
-                            category.toLowerCase().includes('layer') ? 'bg-blue-100 text-blue-800' :
-                            category.toLowerCase().includes('bitcoin') ? 'bg-orange-100 text-orange-800' :
-                            category.toLowerCase().includes('ethereum') ? 'bg-blue-100 text-blue-800' :
-                            category.toLowerCase().includes('solana') ? 'bg-purple-100 text-purple-800' :
-                            category.toLowerCase().includes('meme') ? 'bg-rose-100 text-rose-800' :
-                            category.toLowerCase().includes('defi') ? 'bg-amber-100 text-amber-800' :
-                            category.toLowerCase().includes('dex') ? 'bg-pink-100 text-pink-800' :
-                            category.toLowerCase().includes('oracle') ? 'bg-cyan-100 text-cyan-800' :
-                            category.toLowerCase().includes('store') ? 'bg-yellow-100 text-yellow-800' :
-                            category.toLowerCase().includes('smart') ? 'bg-indigo-100 text-indigo-800' :
-                            category.toLowerCase().includes('scale') || category.toLowerCase().includes('parachain') ? 'bg-green-100 text-green-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {category}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+        
+        {!portfolioData && !isAnalyzing && (
+          <div className="h-[60vh] flex flex-col items-center justify-center">
+            <Wallet2Icon className="h-16 w-16 text-muted-foreground/30 mb-6" />
+            <h2 className="text-2xl font-semibold mb-2">Enter a wallet address</h2>
+            <p className="text-muted-foreground mb-6">
+              Analyze crypto wallets across {supportedNetworks.length} networks
+            </p>
+            <div className="text-xs text-muted-foreground mt-2 max-w-md text-center">
+              Supports Ethereum, Solana, Polygon, BSC, Arbitrum, Optimism, Avalanche, and more
             </div>
           </div>
-        ) : recommendations && recommendations.length === 0 ? (
-          <div className="mt-8">
-            <h2 className="text-2xl font-semibold mb-4">Recommended Tokens</h2>
-            <p className="text-gray-500">No specific recommendations found for your portfolio tokens.</p>
-          </div>
-        ) : null}
-      </div>
-    </main>
+        )}
+      </main>
+    </div>
   );
 }
