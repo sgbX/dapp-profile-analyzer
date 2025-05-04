@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
@@ -137,6 +137,13 @@ export default function Home() {
     },
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
   });
+
+  // Monitor wallet address changes to clear error when empty
+  useEffect(() => {
+    if (!walletAddress.trim()) {
+      setError(null);
+    }
+  }, [walletAddress]);
 
   const { data: portfolioData, refetch: fetchPortfolio, isError: isPortfolioError } = useQuery({
     queryKey: ['portfolio', walletAddress],
@@ -532,8 +539,15 @@ export default function Home() {
     setIsAnalyzing(true);
     setError(null);
     
+    // Check for empty wallet address
+    const trimmedAddress = walletAddress.trim();
+    if (!trimmedAddress) {
+      setIsAnalyzing(false);
+      return;
+    }
+    
     // Detect wallet type and format address
-    let formattedAddress = walletAddress.trim();
+    let formattedAddress = trimmedAddress;
     let detectedNetwork = '';
     
     // Check if it's likely a Solana address (base58 encoded, 32-44 chars)
@@ -713,15 +727,15 @@ export default function Home() {
       </header>
       
       <main className="container p-4 md:p-6 mx-auto">
-        {/* Error message */}
-        {error && (!portfolioData || portfolioData.length === 0) && (
+        {/* Error message - Only show when there's an error and we're not analyzing */}
+        {error && !isAnalyzing && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md text-destructive">
             {error}
           </div>
         )}
 
         {/* Loading state */}
-        {isAnalyzing && (!portfolioData || portfolioData.length === 0) && (
+        {isAnalyzing && (
           <div className="h-[50vh] flex flex-col items-center justify-center">
             <div className="mb-4 text-center">
               <svg className="animate-spin h-10 w-10 mb-4 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -1305,7 +1319,8 @@ export default function Home() {
           </>
         )}
         
-        {!portfolioData && !isAnalyzing && (
+        {/* Show welcome screen when no wallet has been searched yet */}
+        {!portfolioData && !isAnalyzing && !error && (
           <div className="h-[60vh] flex flex-col items-center justify-center">
             <Wallet2Icon className="h-16 w-16 text-muted-foreground/30 mb-6" />
             <h2 className="text-2xl font-semibold mb-2">Enter a wallet address</h2>
