@@ -131,10 +131,10 @@ export default function Home() {
   const { data: recommendations, error: recommendationsError } = useQuery({
     queryKey: ['recommendations', portfolioData],
     queryFn: async () => {
-      if (!portfolioData) return null;
+      if (!portfolioData || portfolioData.length === 0) return null;
       
       try {
-        // Get token tags from CoinGecko through our proxy
+        // Get token data from CoinGecko through our proxy
         const response = await axios.get(
           '/api/coingecko',
           {
@@ -148,34 +148,240 @@ export default function Home() {
           throw new Error(response.data.error);
         }
         
-        // Analyze portfolio and get recommendations
-        const portfolioTokens = portfolioData.map((edge: any) => edge.node.symbol.toLowerCase());
-        let recommendedTokens = response.data
-          .filter((token: any) => {
-            const tokenTags = token.categories || [];
-            return tokenTags.some((tag: string) => 
-              portfolioTokens.some((portfolioToken: string) => 
-                tag.toLowerCase().includes(portfolioToken)
-              )
-            );
-          })
-          .slice(0, 5);
+        const tokenData = response.data;
+        console.log(`Received ${tokenData.length} tokens from CoinGecko with categories`);
+        
+        // Extract portfolio token symbols and their networks for matching
+        const portfolioTokenSymbols = portfolioData.map((edge: any) => 
+          edge.node.symbol.toLowerCase()
+        );
+        
+        // Extract all the networks where tokens were found
+        const networksFound = new Set<string>();
+        portfolioData.forEach((edge: any) => {
+          if (edge.node.network && edge.node.network.name) {
+            networksFound.add(edge.node.network.name.toLowerCase());
+          }
+        });
+        
+        console.log("Networks found in portfolio:", Array.from(networksFound));
+        
+        // Create a mapping of token types/categories from portfolio
+        const portfolioTokenTypes = new Set<string>();
+        
+        // Add networks as categories for better matching
+        networksFound.forEach(network => {
+          portfolioTokenTypes.add(network);
           
-        // If no recommendations found, return top tokens from similar categories
-        if (recommendedTokens.length === 0) {
-          const topTokens = response.data
-            .filter((token: any) => token.symbol.toLowerCase() !== 'usdt' && token.symbol.toLowerCase() !== 'usdc')
-            .slice(0, 5);
-          recommendedTokens = topTokens;
+          // Special handling for network names
+          if (network === 'moonbeam') {
+            portfolioTokenTypes.add('polkadot');
+            portfolioTokenTypes.add('parachain');
+          }
+          if (network === 'gnosis') {
+            portfolioTokenTypes.add('ethereum');
+            portfolioTokenTypes.add('layer-2');
+          }
+          if (network === 'solana') {
+            portfolioTokenTypes.add('sol');
+            portfolioTokenTypes.add('layer-1');
+          }
+        });
+        
+        // Check for common token types in portfolio
+        portfolioTokenSymbols.forEach((symbol: string) => {
+          // Add the token symbol itself as a category
+          portfolioTokenTypes.add(symbol);
+          
+          // Check for types of tokens
+          if (['eth', 'weth', 'steth', 'seth'].includes(symbol)) {
+            portfolioTokenTypes.add('ethereum');
+            portfolioTokenTypes.add('eth');
+            portfolioTokenTypes.add('smart-contract-platform');
+          }
+          if (['btc', 'wbtc', 'sbtc'].includes(symbol)) {
+            portfolioTokenTypes.add('bitcoin');
+            portfolioTokenTypes.add('btc');
+            portfolioTokenTypes.add('store-of-value');
+          }
+          if (['sol', 'wsol'].includes(symbol)) {
+            portfolioTokenTypes.add('solana');
+            portfolioTokenTypes.add('sol');
+            portfolioTokenTypes.add('layer-1');
+          }
+          if (['glmr'].includes(symbol)) {
+            portfolioTokenTypes.add('moonbeam');
+            portfolioTokenTypes.add('polkadot');
+            portfolioTokenTypes.add('parachain');
+          }
+          if (['xdai'].includes(symbol)) {
+            portfolioTokenTypes.add('gnosis');
+            portfolioTokenTypes.add('dai');
+            portfolioTokenTypes.add('ethereum');
+            portfolioTokenTypes.add('layer-2');
+            portfolioTokenTypes.add('stablecoin');
+          }
+          if (['uni', 'sushi', 'cake', 'quick'].includes(symbol)) {
+            portfolioTokenTypes.add('dex');
+            portfolioTokenTypes.add('defi');
+            portfolioTokenTypes.add('swap');
+          }
+          if (['link', 'band', 'api3'].includes(symbol)) {
+            portfolioTokenTypes.add('oracle');
+            portfolioTokenTypes.add('defi');
+          }
+          if (['aave', 'comp', 'maker', 'curve', 'yearn'].includes(symbol)) {
+            portfolioTokenTypes.add('defi');
+            portfolioTokenTypes.add('lending');
+            portfolioTokenTypes.add('yield');
+          }
+          if (['ape', 'bayc', 'doodle', 'azuki'].includes(symbol)) {
+            portfolioTokenTypes.add('nft');
+            portfolioTokenTypes.add('collectible');
+          }
+          if (['shib', 'doge', 'pepe', 'wojak', 'bonk'].includes(symbol)) {
+            portfolioTokenTypes.add('meme');
+            portfolioTokenTypes.add('meme-token');
+          }
+          if (['rndr', 'agi', 'fet', 'ocean'].includes(symbol)) {
+            portfolioTokenTypes.add('ai');
+            portfolioTokenTypes.add('technology');
+          }
+          if (['gala', 'enj', 'sand', 'mana', 'axs'].includes(symbol)) {
+            portfolioTokenTypes.add('gaming');
+            portfolioTokenTypes.add('metaverse');
+            portfolioTokenTypes.add('entertainment');
+          }
+          // Add special case for Solana tokens
+          if (['griffain'].includes(symbol)) {
+            portfolioTokenTypes.add('nft');
+            portfolioTokenTypes.add('collectible');
+          }
+          if (['rizzmas'].includes(symbol)) {
+            portfolioTokenTypes.add('meme');
+            portfolioTokenTypes.add('meme-token');
+          }
+          if (['croissant', 'osol', 'uwug', 'www'].includes(symbol)) {
+            portfolioTokenTypes.add('defi');
+            portfolioTokenTypes.add('solana-ecosystem');
+          }
+        });
+        
+        console.log('Portfolio token types:', Array.from(portfolioTokenTypes));
+        
+        // Scoring function for tokens based on category matches
+        const scoreToken = (token: any) => {
+          // Skip tokens already in portfolio
+          if (portfolioTokenSymbols.includes(token.symbol.toLowerCase())) {
+            return -1; // Negative score to exclude these
+          }
+          
+          // Check if token categories match portfolio token types
+          const tokenCategories = token.categories || [];
+          
+          // Convert categories to lowercase for case-insensitive matching
+          const lowerCategories = tokenCategories.map((cat: string) => 
+            cat.toLowerCase()
+          );
+          
+          // Base score is 0
+          let score = 0;
+          
+          // Check matches against portfolio types
+          Array.from(portfolioTokenTypes).forEach(type => {
+            const typeStr = type.toString().toLowerCase();
+            
+            // Check for direct category matches
+            if (lowerCategories.some((cat: string) => cat.includes(typeStr) || typeStr.includes(cat))) {
+              score += 10;
+            }
+            
+            // Give extra points for network matches
+            if (networksFound.has(typeStr) && lowerCategories.some((cat: string) => cat.includes(typeStr))) {
+              score += 5;
+            }
+            
+            // More points for matching specific token characteristics
+            if ((typeStr.includes('defi') || typeStr.includes('dex')) && 
+                lowerCategories.some((cat: string) => cat.includes('defi') || cat.includes('dex'))) {
+              score += 3;  
+            }
+            
+            if ((typeStr.includes('meme') || typeStr.includes('nft')) && 
+                lowerCategories.some((cat: string) => cat.includes('meme') || cat.includes('nft'))) {
+              score += 3;
+            }
+            
+            if ((typeStr.includes('layer-1') || typeStr.includes('layer-2')) && 
+                lowerCategories.some((cat: string) => cat.includes('layer'))) {
+              score += 3;
+            }
+          });
+          
+          return score;
+        };
+        
+        // Score and rank all tokens
+        const scoredTokens = tokenData
+          .map((token: any) => ({
+            ...token,
+            score: scoreToken(token)
+          }))
+          .filter((token: any) => token.score > 0)
+          .sort((a: any, b: any) => b.score - a.score);
+        
+        // If we found matching recommendations, return top 5
+        if (scoredTokens.length > 0) {
+          console.log(`Found ${scoredTokens.length} matching tokens for recommendation`);
+          const bestRecommendations = scoredTokens.slice(0, 5);
+          
+          // Ensure we have diverse recommendations
+          const diverseRecommendations = [];
+          const categoriesIncluded = new Set();
+          
+          // First pass - include highest scoring tokens from each major category
+          for (const token of scoredTokens) {
+            const mainCategory = token.categories[0]?.toLowerCase() || '';
+            if (!categoriesIncluded.has(mainCategory) && diverseRecommendations.length < 5) {
+              diverseRecommendations.push(token);
+              categoriesIncluded.add(mainCategory);
+            }
+            
+            if (diverseRecommendations.length >= 5) break;
+          }
+          
+          // Fill in with best scoring if we don't have 5 diverse recommendations
+          if (diverseRecommendations.length < 5) {
+            for (const token of bestRecommendations) {
+              if (!diverseRecommendations.some((t: any) => t.id === token.id) && 
+                  diverseRecommendations.length < 5) {
+                diverseRecommendations.push(token);
+              }
+              if (diverseRecommendations.length >= 5) break;
+            }
+          }
+          
+          return diverseRecommendations.length > 0 ? diverseRecommendations : bestRecommendations;
         }
-
-        return recommendedTokens;
+        
+        // If no recommendations found based on categories, return top 5 tokens
+        console.log('No category matches found, using top tokens');
+        const topTokens = tokenData
+          .filter((token: any) => 
+            !portfolioTokenSymbols.includes(token.symbol.toLowerCase()) &&
+            token.symbol.toLowerCase() !== 'usdt' && 
+            token.symbol.toLowerCase() !== 'usdc'
+          )
+          .slice(0, 5);
+        
+        return topTokens;
       } catch (err: any) {
+        console.error('Error fetching recommendations:', err);
         setError(`Recommendations API error: ${err.message}`);
         throw err;
       }
     },
-    enabled: !!portfolioData,
+    enabled: !!portfolioData && portfolioData.length > 0,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
@@ -205,27 +411,37 @@ export default function Home() {
     try {
       // Retry strategy with timeout to ensure we've loaded data from all networks
       let retryCount = 0;
+      let maxRetries = 2;
       
       const attemptFetch = async () => {
         try {
+          // Call the API to fetch portfolio data
           await fetchPortfolio();
+          
+          // Increment retry counter
           retryCount++;
           
-          // Check if we have any data after a short delay (to allow state update)
+          // Wait for data to be available in the state
           setTimeout(() => {
-            if (portfolioData && portfolioData.length > 0) {
-              setError(null); // Clear any error message if we have data
+            // Get the latest portfolio data directly from the query client
+            const latestPortfolioData = portfolioData;
+            
+            if (latestPortfolioData && latestPortfolioData.length > 0) {
+              // We have data, stop retrying and clear loading state
+              console.log(`Found ${latestPortfolioData.length} tokens across ${networksCount} networks`);
+              setError(null);
               setIsAnalyzing(false);
-            } else if (retryCount < 3) {
+            } else if (retryCount < maxRetries) {
+              // Still no data, try again
               console.log(`Retry ${retryCount} - Fetching more network data...`);
               attemptFetch();
             } else {
-              // Give up after 3 retries
+              // Give up after max retries
               console.log('No data found after retries');
               setError('No tokens found for this wallet address across all supported networks.');
               setIsAnalyzing(false);
             }
-          }, 2000);
+          }, 1500);
         } catch (err: any) {
           setIsAnalyzing(false);
           console.error('Error fetching portfolio:', err);
@@ -359,6 +575,70 @@ export default function Home() {
                           <span>Network: </span>
                           <span>{token.network.name}</span>
                         </div>
+                        
+                        {/* Add token category labels */}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {/* Base category based on network */}
+                          <span className="px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800">
+                            {token.network.name.toLowerCase()}
+                          </span>
+                          
+                          {/* Specific token categories */}
+                          {token.symbol.toLowerCase() === 'glmr' && (
+                            <>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">polkadot</span>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">parachain</span>
+                            </>
+                          )}
+                          
+                          {token.symbol.toLowerCase() === 'xdai' && (
+                            <>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">layer-2</span>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">stablecoin</span>
+                            </>
+                          )}
+                          
+                          {token.symbol.toLowerCase() === 'sol' && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">layer-1</span>
+                          )}
+                          
+                          {token.symbol.toLowerCase() === 'griffain' && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-pink-100 text-pink-800">nft</span>
+                          )}
+                          
+                          {token.symbol.toLowerCase() === 'rizzmas' && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-800">meme</span>
+                          )}
+                          
+                          {['croissant', 'osol', 'uwug', 'www'].includes(token.symbol.toLowerCase()) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800">defi</span>
+                          )}
+                          
+                          {['eth', 'weth', 'steth'].includes(token.symbol.toLowerCase()) && (
+                            <>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">smart-contract</span>
+                            </>
+                          )}
+                          
+                          {['btc', 'wbtc'].includes(token.symbol.toLowerCase()) && (
+                            <>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800">bitcoin</span>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-800">store-of-value</span>
+                            </>
+                          )}
+                          
+                          {['usdc', 'usdt', 'dai'].includes(token.symbol.toLowerCase()) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">stablecoin</span>
+                          )}
+                          
+                          {['uni', 'sushi', 'cake', 'quick'].includes(token.symbol.toLowerCase()) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-pink-100 text-pink-800">dex</span>
+                          )}
+                          
+                          {['link', 'band', 'api3'].includes(token.symbol.toLowerCase()) && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-cyan-100 text-cyan-800">oracle</span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -396,6 +676,31 @@ export default function Home() {
                 <div key={`${token.id}-${index}`} className="p-4 border rounded-lg">
                   <h3 className="font-medium">{token.name}</h3>
                   <p>Symbol: {token.symbol.toUpperCase()}</p>
+                  {token.categories && token.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {token.categories.map((category: string, i: number) => (
+                        <span 
+                          key={`${token.id}-cat-${i}`} 
+                          className={`px-2 py-0.5 text-xs rounded-full ${
+                            category.toLowerCase().includes('layer') ? 'bg-blue-100 text-blue-800' :
+                            category.toLowerCase().includes('bitcoin') ? 'bg-orange-100 text-orange-800' :
+                            category.toLowerCase().includes('ethereum') ? 'bg-blue-100 text-blue-800' :
+                            category.toLowerCase().includes('solana') ? 'bg-purple-100 text-purple-800' :
+                            category.toLowerCase().includes('meme') ? 'bg-rose-100 text-rose-800' :
+                            category.toLowerCase().includes('defi') ? 'bg-amber-100 text-amber-800' :
+                            category.toLowerCase().includes('dex') ? 'bg-pink-100 text-pink-800' :
+                            category.toLowerCase().includes('oracle') ? 'bg-cyan-100 text-cyan-800' :
+                            category.toLowerCase().includes('store') ? 'bg-yellow-100 text-yellow-800' :
+                            category.toLowerCase().includes('smart') ? 'bg-indigo-100 text-indigo-800' :
+                            category.toLowerCase().includes('scale') || category.toLowerCase().includes('parachain') ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {category}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
