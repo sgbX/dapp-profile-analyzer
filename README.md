@@ -4,20 +4,34 @@ A decentralized web application that analyzes blockchain wallet profiles and rec
 
 ## Features
 
-- Analyze wallet addresses across multiple networks
-- View detailed portfolio information
-- Get token recommendations based on your current holdings
+- Analyze wallet addresses across multiple blockchain networks (Ethereum, Solana, Polygon, etc.)
+- View detailed portfolio information with network distribution visualization
+- Smart token recommendation system based on your existing holdings
+- Categorization and matching of tokens with similar characteristics
+- Support for large wallets with billions in holdings
 - Clean and modern UI built with Next.js and Shadcn UI
 - Server-side API proxies for secure API key handling
 
 ## Technologies Used
 
-- **Next.js 14** - React framework with App Router
+- **Next.js 15** - React framework with App Router and TurboVite
+- **React 19** - Latest React features
 - **TypeScript** - Type-safe JavaScript
 - **Tailwind CSS** - Utility-first CSS framework
 - **Shadcn UI** - High-quality UI components
 - **React Query** - Data fetching and state management
 - **Axios** - HTTP client
+
+## Smart Recommendation System
+
+The application analyzes the tokens in your wallet to determine:
+
+- Common token types and categories
+- Network preferences and distribution
+- DeFi vs. meme token patterns
+- Investment style based on existing holdings
+
+Based on this analysis, it provides personalized token recommendations that match your investment profile, with clear explanations of why each token is recommended.
 
 ## APIs Used
 
@@ -55,6 +69,10 @@ A decentralized web application that analyzes blockchain wallet profiles and rec
 
    # CoinGecko API Key (server-side)
    COINGECKO_API_KEY=your_coingecko_api_key_here
+
+   # Upstash Redis for rate limiting (optional)
+   UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+   UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
    ```
 
 4. Start the development server:
@@ -68,20 +86,28 @@ A decentralized web application that analyzes blockchain wallet profiles and rec
 
 ## Usage
 
-1. Enter a wallet address in the input field
-2. Click "Analyze Portfolio" to fetch the wallet's holdings
-3. View your portfolio breakdown and token recommendations
-4. Explore new tokens that match your investment profile
+1. Enter a wallet address in the input field (Ethereum-compatible or Solana)
+2. Click "Analyze" to fetch the wallet's holdings
+3. View your portfolio breakdown by networks and assets
+4. Explore token recommendations based on your investment profile
+5. See detailed explanations of why each token is recommended
 
 ## Supported Networks
 
+The application supports a wide range of networks through the Zapper API:
+
 - Ethereum Mainnet
-- Solana
 - Polygon
-- Binance Smart Chain
-- Avalanche
-- Arbitrum
 - Optimism
+- Arbitrum
+- Binance Smart Chain (BSC)
+- Avalanche
+- Fantom Opera
+- Solana (limited support)
+- Base
+- Blast
+- zkSync
+- Linea
 - And more...
 
 ## License
@@ -90,7 +116,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Zapper API for portfolio data
-- CoinGecko API for token information
+- Zapper API for comprehensive portfolio data
+- CoinGecko API for token information and categories
 - Shadcn UI for beautiful components
 - Next.js team for an amazing framework
