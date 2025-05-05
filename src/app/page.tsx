@@ -584,7 +584,7 @@ export default function Home() {
             if (latestPortfolioData && latestPortfolioData.length > 0) {
               // We have data, stop retrying and clear loading state
               console.log(`Found ${latestPortfolioData.length} tokens across ${networksCount} networks`);
-              setError(null);
+              setError(null); // Ensure error is cleared when we have valid data
               setIsAnalyzing(false);
             } else if (retryCount < maxRetries) {
               // Still no data, try again
@@ -727,15 +727,15 @@ export default function Home() {
       </header>
       
       <main className="container p-4 md:p-6 mx-auto">
-        {/* Error message - Only show when there's an error and we're not analyzing */}
-        {error && !isAnalyzing && (
+        {/* Error message - Only show when there's an error, we're not analyzing, AND there's no portfolio data */}
+        {error && !isAnalyzing && (!portfolioData || portfolioData.length === 0) && (
           <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md text-destructive">
             {error}
           </div>
         )}
 
-        {/* Loading state */}
-        {isAnalyzing && (
+        {/* Loading state - Only show when analyzing AND there's no portfolio data yet */}
+        {isAnalyzing && (!portfolioData || portfolioData.length === 0) && (
           <div className="h-[50vh] flex flex-col items-center justify-center">
             <div className="mb-4 text-center">
               <svg className="animate-spin h-10 w-10 mb-4 mx-auto text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
