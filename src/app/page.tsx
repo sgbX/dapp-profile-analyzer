@@ -818,6 +818,10 @@ export default function Home() {
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="assets">Assets</TabsTrigger>
                 <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+                <div className="ml-2 px-2 py-1 text-xs rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center gap-1">
+                  <span className="animate-pulse w-2 h-2 rounded-full bg-blue-500"></span>
+                  NFT Support: Coming Soon
+                </div>
               </TabsList>
               
               {/* Overview tab - Shows summary, top assets and all holdings */}

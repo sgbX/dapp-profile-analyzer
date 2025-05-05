@@ -12,6 +12,12 @@ A decentralized web application that analyzes blockchain wallet profiles and rec
 - Clean and modern UI built with Next.js and Shadcn UI
 - Server-side API proxies for secure API key handling
 
+## Coming Soon
+
+- **NFT Support**: View, analyze and get recommendations based on your NFT holdings
+- Enhanced portfolio analytics with historical data
+- More visualization options for portfolio performance
+
 ## Technologies Used
 
 - **Next.js 15** - React framework with App Router and TurboVite
