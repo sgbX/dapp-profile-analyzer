@@ -64,13 +64,12 @@ Based on this analysis, it provides personalized token recommendations that matc
 
 3. Create a `.env.local` file in the project root and add your API keys:
    ```
-   # Zapper API Key (server-side)
+   # Required: API keys for core functionality
    ZAPPER_API_KEY=your_zapper_api_key_here
-
-   # CoinGecko API Key (server-side)
    COINGECKO_API_KEY=your_coingecko_api_key_here
 
-   # Upstash Redis for rate limiting (optional)
+   # Optional: Upstash Redis for rate limiting
+   # The app works without these, but rate limiting will be disabled
    UPSTASH_REDIS_REST_URL=your_upstash_redis_url
    UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
    ```
